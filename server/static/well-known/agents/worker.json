@@ -1,0 +1,11 @@
+{
+  "name": "ORACLE Worker",
+  "description": "Autonomous worker agent. Accepts tasks by self-staking USDC on its own success, buys inputs and validation over x402, and delivers machine-checkable code.",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentId": 1
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ORACLE Skeptic",
+  "description": "Skeptic bettor. Bets NO against thin self-stakes and cold-start workers — the designated villain the audience roots against.",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentId": 4
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}

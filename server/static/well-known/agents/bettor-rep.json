@@ -1,0 +1,11 @@
+{
+  "name": "ORACLE RepBot",
+  "description": "Reputation-following bettor. Buys the ORACLE Trust Tuple over x402 and bets YES on workers with strong settled track records.",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentId": 3
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}

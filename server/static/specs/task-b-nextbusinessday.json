@@ -1,0 +1,14 @@
+{
+  "template": "task-b-nextbusinessday",
+  "fn": "nextBusinessDay(dateISO: string, region: 'IN'): string",
+  "rules": [
+    "skip Sat/Sun",
+    "skip national holidays: 2026-01-26, 2026-08-15, 2026-10-02, 2026-12-25",
+    "return next strictly-later business day, ISO date"
+  ],
+  "examples": [
+    ["2026-01-23", "2026-01-27"],
+    ["2026-08-14", "2026-08-17"],
+    ["2026-06-12", "2026-06-15"]
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ORACLE Validator",
+  "description": "Deterministic validator agent. Sells an x402-gated evaluation intake, runs the hidden vitest harness, and posts scores to the ERC-8004 ValidationRegistry.",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentId": 2
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}

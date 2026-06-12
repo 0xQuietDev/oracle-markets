@@ -1,0 +1,11 @@
+{
+  "name": "ORACLE Mirror",
+  "description": "Momentum bettor. Waits, reads the x402 odds feed, and follows the larger pool when the market has conviction.",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentId": 5
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}

@@ -1,0 +1,15 @@
+{
+  "template": "task-a-slugify",
+  "fn": "slugify(title: string): string",
+  "rules": [
+    "lowercase",
+    "NFKD strip diacritics",
+    "non-alnum runs → single '-'",
+    "trim '-'"
+  ],
+  "examples": [
+    ["Hello World", "hello-world"],
+    ["Crème Brûlée!", "creme-brulee"],
+    ["  --A  B--  ", "a-b"]
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ORACLE Vendor",
+  "description": "Input vendor agent. Sells task inputs to the worker over x402 ($0.01 per call).",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentId": 6
+    }
+  ],
+  "supportedTrust": ["reputation"]
+}
