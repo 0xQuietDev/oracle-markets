@@ -13,3 +13,4 @@ server/artifacts/*
 .env.fuji
 /tmp/
 *.log
+agents/.validator-work/
