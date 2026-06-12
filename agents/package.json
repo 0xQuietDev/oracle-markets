@@ -1,0 +1,30 @@
+{
+  "name": "@oracle/agents",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "worker": "tsx src/worker.ts",
+    "validator": "tsx src/validator.ts",
+    "bettor-rep": "tsx src/bettor-rep.ts",
+    "bettor-skeptic": "tsx src/bettor-skeptic.ts",
+    "bettor-mirror": "tsx src/bettor-mirror.ts",
+    "vendor": "tsx src/vendor.ts",
+    "register": "tsx src/cli/register-agents.ts",
+    "demo": "tsx src/cli/demo.ts",
+    "test": "vitest run --exclude 'hidden-tests/**'",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@oracle/shared": "workspace:*",
+    "express": "^4.19.2",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
