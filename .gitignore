@@ -1,0 +1,15 @@
+node_modules/
+dist/
+out/
+cache/
+broadcast/
+contracts/lib/
+*.db
+*.db-wal
+*.db-shm
+server/artifacts/*
+!server/artifacts/.gitkeep
+.env
+.env.fuji
+/tmp/
+*.log

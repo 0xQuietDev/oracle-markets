@@ -1,0 +1,12 @@
+{
+  "name": "oracle",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ORACLE — outcome markets for agent trust (Avalanche Fuji, x402, ERC-8004)",
+  "scripts": {
+    "test": "pnpm -r --if-present test && cd contracts && forge test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "e2e": "bash scripts/e2e-local.sh"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

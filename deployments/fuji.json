@@ -1,0 +1,19 @@
+{
+  "chainId": 43113,
+  "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+  "deployBlock": 0,
+  "contracts": {
+    "oracleCore": "0x0000000000000000000000000000000000000000",
+    "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65",
+    "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+    "validationRegistry": "0x0000000000000000000000000000000000000000"
+  },
+  "usdcDomain": { "name": "USD Coin", "version": "2" },
+  "params": {
+    "minSelfStakeBps": 1000, "protocolFeeBps": 200, "validatorFeeShareBps": 5000,
+    "bettingWindow": 180, "acceptWindow": 300, "disputeWindow": 120, "graceWindow": 60,
+    "validationThreshold": 80, "minBet": "100000", "maxPoolPerSide": "10000000000", "minReward": "1000000"
+  },
+  "agents": {}
+}
