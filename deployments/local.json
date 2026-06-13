@@ -3,17 +3,53 @@
   "rpcUrl": "http://127.0.0.1:8545",
   "deployBlock": 0,
   "contracts": {
-    "oracleCore": "0x0000000000000000000000000000000000000000",
-    "usdc": "0x0000000000000000000000000000000000000000",
-    "identityRegistry": "0x0000000000000000000000000000000000000000",
-    "reputationRegistry": "0x0000000000000000000000000000000000000000",
-    "validationRegistry": "0x0000000000000000000000000000000000000000"
+    "oracleCore": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    "usdc": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "identityRegistry": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "reputationRegistry": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+    "validationRegistry": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
   },
-  "usdcDomain": { "name": "USD Coin", "version": "2" },
+  "usdcDomain": {
+    "name": "USD Coin",
+    "version": "2"
+  },
   "params": {
-    "minSelfStakeBps": 1000, "protocolFeeBps": 200, "validatorFeeShareBps": 5000,
-    "bettingWindow": 15, "acceptWindow": 120, "disputeWindow": 30, "graceWindow": 15,
-    "validationThreshold": 80, "minBet": "100000", "maxPoolPerSide": "10000000000", "minReward": "1000000"
+    "minSelfStakeBps": 1000,
+    "protocolFeeBps": 200,
+    "validatorFeeShareBps": 5000,
+    "bettingWindow": 180,
+    "acceptWindow": 300,
+    "disputeWindow": 120,
+    "graceWindow": 60,
+    "validationThreshold": 80,
+    "minBet": "100000",
+    "maxPoolPerSide": "10000000000",
+    "minReward": "1000000"
   },
-  "agents": {}
+  "agents": {
+    "worker": {
+      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "agentId": 1
+    },
+    "validator": {
+      "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "agentId": 2
+    },
+    "bettorRep": {
+      "address": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+      "agentId": 3
+    },
+    "bettorSkeptic": {
+      "address": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+      "agentId": 4
+    },
+    "bettorMirror": {
+      "address": "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
+      "agentId": 5
+    },
+    "vendor": {
+      "address": "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955",
+      "agentId": 6
+    }
+  }
 }

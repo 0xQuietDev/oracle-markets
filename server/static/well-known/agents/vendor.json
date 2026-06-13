@@ -3,9 +3,11 @@
   "description": "Input vendor agent. Sells task inputs to the worker over x402 ($0.01 per call).",
   "registrations": [
     {
-      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentRegistry": "eip155:31337:0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
       "agentId": 6
     }
   ],
-  "supportedTrust": ["reputation"]
+  "supportedTrust": [
+    "reputation"
+  ]
 }

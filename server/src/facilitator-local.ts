@@ -120,6 +120,7 @@ export function createFacilitator(
         ],
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash, confirmations: 1 });
+      console.log(`[facilitator-local] settled ${a.value} units ${a.from} -> ${a.to} tx=${txHash}`);
       return { success: true, txHash };
     })()
       .then((out) => res.json(out))

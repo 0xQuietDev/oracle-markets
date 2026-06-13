@@ -22,6 +22,10 @@ async function main(): Promise<void> {
   const dbPath = process.env.ORACLE_DB ?? join(SERVER_ROOT, "data", "oracle.db");
   if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
   const db = new OracleDb(dbPath);
+  const fingerprint = `${dep.chainId}:${dep.contracts.oracleCore.toLowerCase()}`;
+  if (db.resetIfDeploymentChanged(fingerprint)) {
+    console.log(`[oracle-server] deployment changed -> wiped stale index (now ${fingerprint})`);
+  }
 
   const client = createPublicClient({ transport: viemHttp(dep.rpcUrl) });
   const gate = gateFromEnv(dep);

@@ -102,13 +102,25 @@ async function main() {
         console.error("[validator] report upload failed (continuing):", (err as Error).message);
       }
 
-      await writeValidationRegistry(c, "validationResponse", [
-        requestHash,
-        score,
-        reportUri,
-        keccak256(stringToBytes(report)),
-        "oracle",
-      ]);
+      // The worker files validationRequest in a separate tx from submitDelivery;
+      // tolerate it landing a block or two behind the DeliverySubmitted event.
+      let posted = false;
+      for (let attempt = 1; attempt <= 5 && !posted; attempt++) {
+        try {
+          await writeValidationRegistry(c, "validationResponse", [
+            requestHash,
+            score,
+            reportUri,
+            keccak256(stringToBytes(report)),
+            "oracle",
+          ]);
+          posted = true;
+        } catch (err) {
+          if (attempt === 5) throw err;
+          console.log(`[validator] validationResponse attempt ${attempt} reverted (request not landed yet?), retrying in 2s`);
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
       console.log(`[validator] task ${taskId}: validationResponse(${score}) posted`);
 
       try {

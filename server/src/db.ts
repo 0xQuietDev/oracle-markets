@@ -119,6 +119,24 @@ export class OracleDb {
     this.db.exec(SCHEMA);
   }
 
+  /**
+   * Wipe all indexed data if the deployment fingerprint (chainId:oracleCore)
+   * differs from what is stored. Prevents stale trust tuples / tasks from a
+   * previous deployment leaking into a freshly-deployed chain (e.g. a new anvil
+   * run reusing the on-disk DB), which would corrupt cold-start bettor logic.
+   */
+  resetIfDeploymentChanged(fingerprint: string): boolean {
+    const row = this.db.prepare(`SELECT value FROM meta WHERE key='deployment'`).get() as
+      | { value: string }
+      | undefined;
+    if (row?.value === fingerprint) return false;
+    this.db.exec(
+      `DELETE FROM bets; DELETE FROM odds_snapshots; DELETE FROM trust_tuples; DELETE FROM tasks; DELETE FROM meta;`,
+    );
+    this.db.prepare(`INSERT OR REPLACE INTO meta(key, value) VALUES ('deployment', ?)`).run(fingerprint);
+    return true;
+  }
+
   close(): void {
     this.db.close();
   }

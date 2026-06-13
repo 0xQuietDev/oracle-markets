@@ -103,8 +103,10 @@ async function main() {
         console.error(`[worker] validator intake payment failed (continuing):`, (err as Error).message);
       }
 
-      // 7. submit delivery, then DR-6 path (b): worker files the validation request
-      await writeOracle(c, "submitDelivery", [taskId, deliverableHash, evidenceURI]);
+      // 7. DR-6 path (b): file the validation request BEFORE submitDelivery —
+      // the validator triggers on DeliverySubmitted, so the request must already
+      // exist or a fast validator races into RequestNotFound. The hash binds the
+      // request to this exact delivery either way.
       const requestHash: Hex = keccak256(
         encodeAbiParameters(
           [{ type: "uint256" }, { type: "bytes32" }],
@@ -117,7 +119,8 @@ async function main() {
         evidenceURI,
         requestHash,
       ]);
-      console.log(`[worker] task ${taskId}: delivered, validationRequest filed (${requestHash})`);
+      await writeOracle(c, "submitDelivery", [taskId, deliverableHash, evidenceURI]);
+      console.log(`[worker] task ${taskId}: validationRequest filed (${requestHash}), delivered`);
     } catch (err) {
       console.error(`[worker] task ${taskId} failed:`, err);
       inFlight.delete(key); // allow retry on next sighting

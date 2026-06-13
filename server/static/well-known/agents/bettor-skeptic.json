@@ -3,9 +3,11 @@
   "description": "Skeptic bettor. Bets NO against thin self-stakes and cold-start workers — the designated villain the audience roots against.",
   "registrations": [
     {
-      "agentRegistry": "eip155:31337:0x0000000000000000000000000000000000000000",
+      "agentRegistry": "eip155:31337:0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
       "agentId": 4
     }
   ],
-  "supportedTrust": ["reputation"]
+  "supportedTrust": [
+    "reputation"
+  ]
 }
