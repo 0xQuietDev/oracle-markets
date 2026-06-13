@@ -20,9 +20,17 @@ import {
   writeOracle,
   writeValidationRegistry,
 } from "./lib/chain.js";
-import { estimateConfidence, stakeFor, templateFromSpecURI, type TaskSpec } from "./lib/confidence.js";
+import {
+  estimateConfidence,
+  fnNameFromSpec,
+  stakeFor,
+  templateFromSpecURI,
+  type TaskSpec,
+} from "./lib/confidence.js";
 import { deliverableSource, hasSolver } from "./lib/deliverables.js";
 import { makePaidFetch } from "./lib/payments.js";
+import { llmEnabled, GEMINI_MODEL } from "./mastra/model.js";
+import { llmConfidence, llmSolution } from "./mastra/agents.js";
 
 const VENDOR_URL = process.env.ORACLE_VENDOR_URL ?? `http://localhost:${PORTS.vendor}`;
 const VALIDATOR_INTAKE_URL =
@@ -54,13 +62,27 @@ async function main() {
       if (!specRes.ok) throw new Error(`GET spec ${t.specURI} -> ${specRes.status}`);
       const spec = (await specRes.json()) as TaskSpec;
       const template = spec.template ?? templateFromSpecURI(t.specURI);
-      if (!hasSolver(template)) {
+      const fnName = fnNameFromSpec(spec);
+      // With a real LLM the worker can attempt any task it can write code for;
+      // offline it is limited to templates with a canned solver.
+      if (!llmEnabled() && !hasSolver(template)) {
         console.log(`[worker] task ${taskId}: no solver for template "${template}" — not accepting`);
         return;
       }
+      if (llmEnabled() && !fnName) {
+        console.log(`[worker] task ${taskId}: spec has no parseable fn name — not accepting`);
+        return;
+      }
 
-      // 2. deterministic confidence -> stake -> accept (acceptance IS a bet)
-      const conf = estimateConfidence(spec);
+      // 2. assess confidence -> stake -> accept (acceptance IS a bet on yourself)
+      let conf: number;
+      if (llmEnabled()) {
+        const a = await llmConfidence(spec);
+        conf = a.confidence;
+        console.log(`[worker] task ${taskId}: [${GEMINI_MODEL}] confidence=${conf.toFixed(2)} — ${a.reasoning}`);
+      } else {
+        conf = estimateConfidence(spec);
+      }
       const stake = stakeFor(t.reward, conf);
       console.log(`[worker] task ${taskId}: template=${template} conf=${conf} stake=${stake} units`);
       await writeOracle(c, "acceptAndStake", [taskId, myAgentId, stake]);
@@ -79,8 +101,21 @@ async function main() {
         console.error(`[worker] vendor input purchase failed (continuing):`, (err as Error).message);
       }
 
-      // 5. produce deliverable = standalone solver module source
-      const source = deliverableSource(template);
+      // 5. produce deliverable = standalone module source.
+      //    Real mode: Gemini writes the solution. Fallback: canned solver (if any).
+      let source: string;
+      if (llmEnabled()) {
+        try {
+          source = await llmSolution(spec, fnName);
+          console.log(`[worker] task ${taskId}: [${GEMINI_MODEL}] wrote ${source.length}-char solution for ${fnName}()`);
+        } catch (err) {
+          if (!hasSolver(template)) throw err;
+          source = deliverableSource(template);
+          console.error(`[worker] task ${taskId}: LLM solution failed (${(err as Error).message}); using canned solver`);
+        }
+      } else {
+        source = deliverableSource(template);
+      }
       const deliverableHash = keccak256(stringToBytes(source));
       const upload = await fetch(`${SERVER_URL}/artifacts`, {
         method: "POST",

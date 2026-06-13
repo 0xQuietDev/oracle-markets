@@ -576,6 +576,8 @@ LMSR continuous market (DR-1 reversal) • validator quorum with bonded stake sl
 | DR-5 | Single pre-assigned validator + timeout ladder | 6.1 |
 | DR-6 | **DECIDED Jun 12: path (b)** — worker calls `validationRequest` directly; `settleWithValidation` verifies validator address + agentId in the returned status | 7.2 note V1 |
 | DR-7 | **Jun 12:** Local dev uses MockUSDC (EIP-3009-capable) + minimal local ERC-8004 registries + self-hosted mini-facilitator on anvil; Fuji uses canonical contracts. Same code paths, different `deployments/*.json` | 8.2 |
+| DR-8 | **Jun 13:** Validator fee share accrues to a per-wallet `validatorAccrued` mapping, withdrawn via `withdrawValidatorFees()` (the §6.5 `claim` is per-bettor only). | 7.2 |
+| DR-9 | **Jun 13:** Agent brains are **real LLM agents built on Mastra**, model **Gemini 2.5 Flash** (`@ai-sdk/google`). The worker genuinely assesses its own confidence and **writes the solution code**; the three bettors reason over odds/trust to decide bets. The *hands* (on-chain txs, x402 payments) stay deterministic in the daemons with hard money guardrails (`toDecision` clamps to ≤25 USDC, ≥MIN_BET). The **validator stays deterministic vitest** — the judge of success must be objective, never an LLM. When no `GEMINI_API_KEY` is set, every agent falls back to the deterministic strategy/solver so tests + e2e stay fast and offline. Reverses the v1 "no LLM in the loop" note in §8.3. | 8.3 |
 
 ## 16. References
 

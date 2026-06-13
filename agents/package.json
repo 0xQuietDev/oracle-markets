@@ -12,13 +12,17 @@
     "vendor": "tsx src/vendor.ts",
     "register": "tsx src/cli/register-agents.ts",
     "demo": "tsx src/cli/demo.ts",
-    "test": "vitest run --exclude 'hidden-tests/**'",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.0",
+    "@mastra/core": "^1.42.0",
     "@oracle/shared": "workspace:*",
+    "ai": "^6.0.0",
     "express": "^4.19.2",
-    "viem": "^2.21.0"
+    "viem": "^2.21.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

@@ -40,3 +40,9 @@ export function templateFromSpecURI(specURI: string): string {
   const last = specURI.split("/").pop() ?? "";
   return last.split("?")[0].split("#")[0].replace(/\.json$/i, "");
 }
+
+/** "slugify(title: string): string" -> "slugify" (the exported symbol the validator imports). */
+export function fnNameFromSpec(spec: TaskSpec): string {
+  const m = (spec.fn ?? "").match(/^\s*([A-Za-z_$][\w$]*)\s*\(/);
+  return m ? m[1] : "";
+}
