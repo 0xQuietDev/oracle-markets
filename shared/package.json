@@ -8,7 +8,8 @@
     "./abi": "./src/abi.ts",
     "./config": "./src/config.ts",
     "./x402-types": "./src/x402-types.ts",
-    "./x402-lite": "./src/x402-lite.ts"
+    "./x402-lite": "./src/x402-lite.ts",
+    "./console-types": "./src/console-types.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

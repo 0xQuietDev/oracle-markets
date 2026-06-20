@@ -14,3 +14,7 @@ server/artifacts/*
 /tmp/
 *.log
 agents/.validator-work/
+
+# all dotenv variants (secrets)
+.env*
+!.env*.example

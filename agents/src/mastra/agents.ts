@@ -85,14 +85,28 @@ export async function llmSolution(spec: TaskSpec, fnName: string): Promise<strin
   return sanitizeCode(obj.code, fnName);
 }
 
-/** Strip markdown fences / stray prose; verify the required export is present. */
+/**
+ * Normalize LLM output into a standalone module the validator can import:
+ * unwrap a markdown fence, drop leading prose, require the function to be
+ * DEFINED, and ensure it is exported (auto-append `export { fn }` if needed).
+ * Throws only if the function isn't defined at all — a genuine failure.
+ */
 export function sanitizeCode(raw: string, fnName: string): string {
   let code = raw.trim();
-  const fence = code.match(/```(?:[a-zA-Z]+)?\n([\s\S]*?)```/);
+  const fence = code.match(/```(?:[a-zA-Z]+)?\s*\n([\s\S]*?)```/);
   if (fence) code = fence[1].trim();
-  if (!new RegExp(`export\\s+(?:async\\s+)?(?:function|const)\\s+${fnName}\\b`).test(code)) {
-    throw new Error(`LLM solution missing \`export ... ${fnName}\``);
-  }
+  // drop any leading prose before the first code-ish line
+  const firstCode = code.search(/^(?:import |export |async |function |const |let |var |\/\/|\/\*)/m);
+  if (firstCode > 0) code = code.slice(firstCode).trim();
+
+  const defined = new RegExp(`(?:async\\s+)?(?:function|const|let|var)\\s+${fnName}\\b`).test(code);
+  if (!defined) throw new Error(`LLM solution does not define ${fnName}`);
+
+  const exported =
+    new RegExp(`export\\s+(?:default\\s+)?(?:async\\s+)?(?:function|const|let|var)\\s+${fnName}\\b`).test(code) ||
+    new RegExp(`export\\s*\\{[^}]*\\b${fnName}\\b`).test(code);
+  if (!exported) code += `\nexport { ${fnName} };`;
+
   return code.endsWith("\n") ? code : code + "\n";
 }
 
