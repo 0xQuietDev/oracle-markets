@@ -1,5 +1,6 @@
 // Emoji identity per fleet agentId (local registration order) and per role
-// string (from ActivityItem.role). Unknown ids fall back to 🎲.
+// string (from ActivityItem.role). Unknown ids fall back to 🎲. The rendered
+// avatar lives in ui.tsx (RoleBadge); this module is the pure metadata source.
 
 const AVATARS: Record<number, { emoji: string; name: string }> = {
   1: { emoji: "🤖", name: "worker" },
@@ -30,22 +31,4 @@ export function agentMeta(agentId: number): { emoji: string; name: string } {
 
 export function roleMeta(role: string): { emoji: string; name: string } {
   return ROLE_AVATARS[role] ?? { emoji: "🎲", name: role };
-}
-
-export function AgentAvatar({ agentId }: { agentId: number }) {
-  const m = agentMeta(agentId);
-  return (
-    <span className="avatar" title={`${m.name} (agent #${agentId})`} role="img" aria-label={m.name}>
-      {m.emoji}
-    </span>
-  );
-}
-
-export function RoleAvatar({ role }: { role: string }) {
-  const m = roleMeta(role);
-  return (
-    <span className="avatar" title={m.name} role="img" aria-label={m.name}>
-      {m.emoji}
-    </span>
-  );
 }

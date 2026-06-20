@@ -85,7 +85,7 @@ export function FlowCanvas({
   );
 
   return (
-    <div className="flow-canvas">
+    <div className="h-[420px] w-full overflow-hidden rounded-xl border border-default/60 bg-surface/40">
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -50,7 +50,7 @@ export function PulseEdge({
       {active && (
         // keyed by seq so a fresh pulse always restarts the motion
         <g key={d.pulseSeq ?? 0}>
-          <circle r={7} fill={color} className="pulse-dot">
+          <circle r={7} fill={color} className="oracle-pulse-dot" style={{ color }}>
             <animateMotion dur="1.1s" repeatCount="1" path={path} fill="freeze" />
           </circle>
         </g>
@@ -59,7 +59,7 @@ export function PulseEdge({
         <EdgeLabelRenderer>
           <div
             key={d.pulseSeq ?? 0}
-            className="pulse-label"
+            className="oracle-pulse-label"
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
               borderColor: color,

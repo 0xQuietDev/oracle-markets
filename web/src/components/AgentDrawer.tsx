@@ -1,9 +1,10 @@
 // Opened by clicking a flow-canvas node: that agent's activity history (filtered
-// by role) plus, for the worker, the code it wrote. Tx references render as
-// chips that open the mini-explorer.
+// by role) plus, for the worker, the code it wrote. Built on a controlled HeroUI
+// Drawer; solution rows are clickable → the WorkerCodeModal.
 
+import { Chip, Drawer } from "@heroui/react";
 import { clockTime, usd } from "../format.js";
-import { roleMeta } from "./AgentAvatar.js";
+import { RoleBadge, SideChip } from "./ui.js";
 import type { ActivityItem } from "../types.js";
 
 const ROLE_ALIASES: Record<string, string[]> = {
@@ -36,52 +37,70 @@ export function AgentDrawer({
 }) {
   const aliases = ROLE_ALIASES[role] ?? [role];
   const items = activity.filter((a) => aliases.includes(a.role)).slice().reverse();
-  const meta = roleMeta(role);
 
   return (
-    <div className="drawer-backdrop" onClick={onClose}>
-      <div className="drawer agent-drawer" onClick={(e) => e.stopPropagation()}>
-        <header className="drawer-head">
-          <div>
-            <div className="drawer-kicker">agent history</div>
-            <div className="drawer-title">
-              <span className="flow-node-emoji">{meta.emoji}</span> {label}
-            </div>
-          </div>
-          <button className="drawer-close" onClick={onClose} aria-label="close">
-            ✕
-          </button>
-        </header>
-
-        {items.length === 0 && <div className="drawer-info">no activity for {label} yet…</div>}
-
-        <div className="agent-history">
-          {items.map((it, i) => {
-            const clickable = it.kind === "solution" && it.code;
-            return (
-              <div
-                key={`${it.ts}-${i}`}
-                className={"history-row" + (clickable ? " history-code" : "")}
-                onClick={clickable ? () => onOpenCode(it) : undefined}
-              >
-                <div className="history-line1">
-                  <span className="history-kind">{it.kind}</span>
-                  {it.side && (
-                    <span className={it.side === "YES" ? "chip chip-yes" : "chip chip-no"}>
-                      {it.side}
-                    </span>
-                  )}
-                  {it.amount && <span className="feed-amount">{usd(it.amount)}</span>}
-                  {it.score != null && <span className="feed-score">score {it.score}</span>}
-                  <span className="feed-time">{clockTime(it.ts)}</span>
-                </div>
-                <div className="feed-text">{it.text}</div>
-                {clickable && <div className="feed-codehint">⌨ view solution code →</div>}
+    <Drawer.Backdrop variant="blur" isOpen onOpenChange={(o) => !o && onClose()}>
+      <Drawer.Content placement="right" className="w-full max-w-[420px]">
+        <Drawer.Dialog>
+          <Drawer.CloseTrigger />
+          <Drawer.Header>
+            <div className="flex items-center gap-3">
+              <RoleBadge role={role} size="lg" />
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs uppercase tracking-widest text-muted">agent history</span>
+                <Drawer.Heading className="text-base">{label}</Drawer.Heading>
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+            </div>
+          </Drawer.Header>
+          <Drawer.Body className="flex flex-col gap-2">
+            {items.length === 0 && (
+              <p className="text-sm text-muted">No activity for {label} yet…</p>
+            )}
+            {items.map((it, i) => {
+              const clickable = it.kind === "solution" && it.code;
+              return (
+                <div
+                  key={`${it.ts}-${i}`}
+                  role={clickable ? "button" : undefined}
+                  tabIndex={clickable ? 0 : undefined}
+                  onClick={clickable ? () => onOpenCode(it) : undefined}
+                  onKeyDown={
+                    clickable
+                      ? (e) => (e.key === "Enter" || e.key === " ") && onOpenCode(it)
+                      : undefined
+                  }
+                  className={[
+                    "flex flex-col gap-1 rounded-xl p-2.5 ring-1 transition",
+                    clickable
+                      ? "cursor-pointer bg-surface-secondary ring-default/50 hover:ring-accent/60"
+                      : "bg-surface-secondary/50 ring-default/40",
+                  ].join(" ")}
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Chip size="sm" variant="soft" color="default">
+                      <Chip.Label>{it.kind}</Chip.Label>
+                    </Chip>
+                    {it.side && <SideChip side={it.side} />}
+                    {it.amount && (
+                      <span className="tnum text-xs font-medium text-muted">{usd(it.amount)}</span>
+                    )}
+                    {it.score != null && (
+                      <Chip size="sm" variant="soft" color="accent">
+                        <Chip.Label>score {it.score}</Chip.Label>
+                      </Chip>
+                    )}
+                    <span className="tnum ml-auto text-[10px] text-muted">{clockTime(it.ts)}</span>
+                  </div>
+                  <p className="text-sm leading-snug text-foreground/90">{it.text}</p>
+                  {clickable && (
+                    <span className="text-xs font-medium text-accent">⌨ view solution code →</span>
+                  )}
+                </div>
+              );
+            })}
+          </Drawer.Body>
+        </Drawer.Dialog>
+      </Drawer.Content>
+    </Drawer.Backdrop>
   );
 }

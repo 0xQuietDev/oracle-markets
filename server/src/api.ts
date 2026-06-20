@@ -71,6 +71,20 @@ export function createApp(opts: ApiOptions): Express {
 
   const app = express();
 
+  // ---- CORS: the dashboard runs cross-origin (vite :5173) and agents post from
+  //      other processes. Permissive on testnet; x402 headers exposed. ----
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, X-PAYMENT");
+    res.header("Access-Control-Expose-Headers", "X-PAYMENT-RESPONSE");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+
   // ---- free routes ----
   app.get("/healthz", (_req, res) => {
     res.json({ ok: true, block: Number(db.getMeta("lastBlock") ?? 0) });
