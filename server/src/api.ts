@@ -28,6 +28,7 @@ import {
   readRun,
   type ConsoleState,
 } from "./console.js";
+import type { Control } from "./control.js";
 import type { WsMessage } from "./ws.js";
 
 const SERVER_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,6 +51,7 @@ export type ApiOptions = {
   console?: ConsoleState; // ring buffers + director state (shared with index.ts)
   runsDir?: string; // where runs/<id>.jsonl live
   client?: PublicClient; // viem client for GET /v1/tx/:hash receipts
+  control?: Control; // control plane: create tasks on-chain from the UI
   // broadcast is provided via a mutable ref set in index.ts AFTER attachWs;
   // createApp captures the ref so routes broadcast through the live WS server.
   broadcaster?: { current: (msg: WsMessage) => void };
@@ -273,6 +275,36 @@ export function createApp(opts: ApiOptions): Express {
     } catch (err) {
       next(err);
     }
+  });
+
+  // ---- control plane: drive the demo from the UI ----
+  // GET /v1/control — capabilities + available task templates.
+  app.get("/v1/control", (_req, res) => {
+    res.json({
+      available: opts.control?.available ?? false,
+      reason: opts.control?.reason,
+      templates: opts.control?.templates() ?? [],
+    });
+  });
+
+  // POST /v1/control/task { template } — create a task on-chain (client role).
+  app.post("/v1/control/task", jsonBody, (req, res, next) => {
+    if (!opts.control?.available) {
+      res.status(503).json({ error: "control_unavailable", reason: opts.control?.reason });
+      return;
+    }
+    const template = (req.body ?? {}).template as string | undefined;
+    if (typeof template !== "string") {
+      res.status(400).json({ error: "template_required" });
+      return;
+    }
+    opts.control
+      .createTask(template)
+      .then((r) => res.json({ ok: true, ...r }))
+      .catch((err) => {
+        console.error("[control] createTask failed:", (err as Error).message);
+        res.status(500).json({ error: "create_failed", message: (err as Error).message });
+      });
   });
 
   // ---- static: specs, agent registrations, artifacts ----

@@ -13,6 +13,7 @@ import { attachWs, type WsMessage } from "./ws.js";
 import { startIndexer } from "./indexer.js";
 import { gateFromEnv } from "./x402.js";
 import { createConsoleState, createRecorder, directorStatus } from "./console.js";
+import { makeControl } from "./control.js";
 import type { Rep8004 } from "./trust.js";
 
 const SERVER_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -61,6 +62,9 @@ async function main(): Promise<void> {
   // to runs/<runId>.jsonl with a ms offset before it goes out over the socket.
   const broadcaster: { current: (msg: WsMessage) => void } = { current: () => {} };
 
+  const staticDir = join(SERVER_ROOT, "static");
+  const control = makeControl(dep, join(staticDir, "specs"), `http://localhost:${PORTS.server}`);
+
   const app = createApp({
     db,
     dep,
@@ -70,6 +74,7 @@ async function main(): Promise<void> {
     console: cs,
     runsDir,
     broadcaster,
+    control,
   });
   const server = createServer(app);
   const ws = attachWs(server, db, {
