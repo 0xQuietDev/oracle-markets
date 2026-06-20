@@ -18,3 +18,5 @@ agents/.validator-work/
 # all dotenv variants (secrets)
 .env*
 !.env*.example
+server/runs/
+server/data/
