@@ -28,6 +28,7 @@ export type ActivityItem = {
   confidence?: number; // worker confidence 0..1
   source?: "gemini" | "rule"; // honesty tag — was this a real LLM decision?
   code?: string; // for kind="solution": the source the worker wrote
+  tests?: { name: string; pass: boolean }[]; // for kind="verdict": per-hidden-test results
 };
 
 /** A real x402 settlement, animated as a pulse along a flow edge. */

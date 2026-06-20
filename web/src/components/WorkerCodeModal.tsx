@@ -29,7 +29,8 @@ export function WorkerCodeModal({
   verdict?: ActivityItem | null;
   onClose: () => void;
 }) {
-  const tests = parseTests(verdict?.text);
+  // Prefer the validator's structured per-test results; fall back to text-parsing.
+  const tests = verdict?.tests?.length ? verdict.tests : parseTests(verdict?.text);
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>

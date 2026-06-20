@@ -88,7 +88,7 @@ async function main() {
       if (!evidenceRes.ok) throw new Error(`GET evidence -> ${evidenceRes.status}`);
       const solution = await evidenceRes.text();
 
-      const { passed, total, score } = await runHarness(template, solution, `task-${key}`);
+      const { passed, total, score, tests } = await runHarness(template, solution, `task-${key}`);
       console.log(`[validator] task ${taskId}: ${passed}/${total} passed -> score ${score}`);
       reportActivity({
         taskId: Number(taskId),
@@ -97,6 +97,7 @@ async function main() {
         kind: "verdict",
         text: `${passed}/${total} hidden tests passed`,
         score,
+        tests,
       });
 
       const report = JSON.stringify(

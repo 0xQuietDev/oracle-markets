@@ -13,7 +13,8 @@ const HIDDEN_TESTS_DIR = join(AGENTS_ROOT, "hidden-tests");
 const WORK_ROOT = join(AGENTS_ROOT, ".validator-work");
 const VITEST_BIN = join(AGENTS_ROOT, "node_modules", ".bin", "vitest");
 
-export type HarnessResult = { passed: number; total: number; score: number };
+export type HarnessTest = { name: string; pass: boolean };
+export type HarnessResult = { passed: number; total: number; score: number; tests: HarnessTest[] };
 
 export async function runHarness(
   template: string,
@@ -23,7 +24,7 @@ export async function runHarness(
   const suiteDir = join(HIDDEN_TESTS_DIR, template);
   if (!existsSync(join(suiteDir, "hidden.test.ts"))) {
     console.error(`[harness] no hidden suite for template "${template}" -> score 0`);
-    return { passed: 0, total: 10, score: 0 };
+    return { passed: 0, total: 10, score: 0, tests: [] };
   }
   mkdirSync(WORK_ROOT, { recursive: true });
   const workdir = mkdtempSync(join(WORK_ROOT, `${runLabel}-`));
@@ -63,13 +64,21 @@ export async function runHarness(
     const report = JSON.parse(stdout.slice(start, end + 1)) as {
       numTotalTests?: number;
       numPassedTests?: number;
+      testResults?: { assertionResults?: { title?: string; fullName?: string; status?: string }[] }[];
     };
     const total = report.numTotalTests ?? 0;
     const passed = report.numPassedTests ?? 0;
     if (total === 0) throw new Error("vitest reported 0 tests");
-    return { passed, total, score: Math.round((100 * passed) / total) };
+    // Per-test detail for the worker-code modal (which hidden case failed).
+    const tests: HarnessTest[] = (report.testResults ?? []).flatMap((f) =>
+      (f.assertionResults ?? []).map((a) => ({
+        name: a.title ?? a.fullName ?? "case",
+        pass: a.status === "passed",
+      })),
+    );
+    return { passed, total, score: Math.round((100 * passed) / total), tests };
   } catch (err) {
     console.error("[harness] failed to parse vitest output -> score 0:", (err as Error).message);
-    return { passed: 0, total: 10, score: 0 };
+    return { passed: 0, total: 10, score: 0, tests: [] };
   }
 }
