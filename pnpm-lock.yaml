@@ -109,6 +109,9 @@ importers:
 
   web:
     dependencies:
+      '@oracle/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@xyflow/react':
         specifier: ^12.11.0
         version: 12.11.0(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

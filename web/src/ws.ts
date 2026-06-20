@@ -1,15 +1,37 @@
-// Reconnecting WebSocket client for the frozen plan §2.5 protocol.
-// Dispatches parsed server messages straight into the reducer, plus a local
-// "connection" action for the status pill. Reconnects with a 1s backoff.
+// Reconnecting WebSocket client for the FROZEN console protocol
+// (@oracle/shared/console-types). Dispatches parsed server messages straight
+// into the reducer, plus a local "connection" action for the status pill.
+// Reconnects with a 1s backoff. A `?replay=<runId>` suffix asks the server to
+// re-emit a recorded run through the identical protocol.
 
-import type { StoreAction } from "./types";
+import type { StoreAction } from "./types.js";
 
 export type Dispatcher = (action: StoreAction) => void;
 
-const KNOWN_TYPES = new Set(["snapshot", "task", "bet", "settled"]);
+const KNOWN_TYPES = new Set([
+  "snapshot",
+  "task",
+  "bet",
+  "settled",
+  "activity",
+  "payment",
+  "tx",
+  "director",
+]);
 
 export const DEFAULT_WS_URL =
   (import.meta.env?.VITE_ORACLE_WS as string | undefined) ?? "ws://localhost:8402";
+
+export const REST_BASE =
+  (import.meta.env?.VITE_ORACLE_REST as string | undefined) ??
+  DEFAULT_WS_URL.replace(/^ws/, "http");
+
+/** Append `?replay=<id>` to the WS url if a replay run is requested. */
+export function wsUrlFor(base: string, replayId?: string | null): string {
+  if (!replayId) return base;
+  const sep = base.includes("?") ? "&" : "?";
+  return `${base}${sep}replay=${encodeURIComponent(replayId)}`;
+}
 
 /**
  * Connect and keep connected. Returns a cleanup function that stops
@@ -33,7 +55,7 @@ export function connectWs(url: string, dispatch: Dispatcher): () => void {
           dispatch(msg as StoreAction);
         }
       } catch {
-        // malformed frame — ignore, never crash the stage dashboard
+        // malformed frame — ignore, never crash the stage console
       }
     };
 

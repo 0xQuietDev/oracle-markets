@@ -1,6 +1,27 @@
-// WS-D types — mirrors of the server DB row shapes (plan §4.2, camelCase)
-// and the frozen WebSocket protocol (plan §2.5). Defined locally: web has no
-// dependency on server/ or chain code.
+// Web store types. Row shapes (TaskRow/BetRow) mirror the server DB rows
+// (camelCase, USDC units as decimal strings) — web has no dependency on
+// server/ or chain code. The WebSocket protocol itself is the FROZEN
+// interface imported from "@oracle/shared/console-types"; the base task/bet
+// payloads there are typed `unknown`, so we narrow them to these rows.
+
+import type {
+  ActivityItem,
+  ConsoleWsMessage,
+  DirectorStatus,
+  PaymentEvent,
+  TxEvent,
+} from "@oracle/shared/console-types";
+
+export type {
+  ActivityItem,
+  ActivityKind,
+  ConsoleWsMessage,
+  DirectorStatus,
+  PaymentEvent,
+  TxEvent,
+  TxKind,
+  TxReceiptView,
+} from "@oracle/shared/console-types";
 
 export type TaskState =
   | "Created"
@@ -13,7 +34,7 @@ export type TaskState =
 export type OutcomeStr = "Unresolved" | "Yes" | "No";
 export type SideStr = "Yes" | "No";
 
-/** camelCase mirror of the `tasks` table (plan §4 Task B3). */
+/** camelCase mirror of the `tasks` table. */
 export interface TaskRow {
   taskId: number;
   client: string;
@@ -40,7 +61,7 @@ export interface TaskRow {
   pCutoffBps: number | null;
 }
 
-/** camelCase mirror of the `bets` table (plan §4 Task B3). */
+/** camelCase mirror of the `bets` table. */
 export interface BetRow {
   id: number;
   taskId: number;
@@ -56,39 +77,16 @@ export interface BetRow {
   ts: number;
 }
 
-// ---- frozen WebSocket protocol, plan §2.5 (server → web) ----
-
-export interface SnapshotMsg {
-  type: "snapshot";
-  tasks: TaskRow[];
-}
-export interface TaskMsg {
-  type: "task";
-  task: TaskRow;
-}
-export interface BetMsg {
-  type: "bet";
-  taskId: number;
-  bet: BetRow;
-  pBps: number;
-}
-export interface SettledMsg {
-  type: "settled";
-  taskId: number;
-  outcome: "Yes" | "No";
-  viaRule: number;
-  validatorScore: number;
-}
-
-export type ServerMessage = SnapshotMsg | TaskMsg | BetMsg | SettledMsg;
-
 /** Local-only action so the UI can show connection status. */
 export interface ConnectionAction {
   type: "connection";
   connected: boolean;
 }
 
-export type StoreAction = ServerMessage | ConnectionAction;
+// The store consumes every frozen console message plus the local connection
+// action. The base channels carry `unknown` payloads in the protocol; the
+// reducer narrows them via the typed action helpers below.
+export type StoreAction = ConsoleWsMessage | ConnectionAction;
 
 export interface OddsPoint {
   /** unix seconds */
@@ -100,7 +98,7 @@ export interface TaskEntry {
   task: TaskRow;
   bets: BetRow[];
   odds: OddsPoint[];
-  /** true only when settlement arrived live over the socket (drives the 3s banner) */
+  /** true only when settlement arrived live over the socket (drives the banner) */
   justSettled: boolean;
 }
 
@@ -109,4 +107,23 @@ export interface StoreState {
   tasks: Record<number, TaskEntry>;
   /** taskIds, newest first */
   order: number[];
+  /** global chronological feeds, capped */
+  activity: ActivityItem[];
+  payments: PaymentEvent[];
+  txs: TxEvent[];
+  director: DirectorStatus;
+  /** monotonic counter bumped on each payment/tx/bet — drives flow pulses */
+  pulseSeq: number;
+  /** the most recent flow pulse to animate, if any */
+  lastPulse: FlowPulse | null;
+}
+
+/** A flow-canvas animation cue derived from a payment / tx / bet. */
+export interface FlowPulse {
+  seq: number;
+  /** logical edge id (source->target actor node ids) */
+  edgeId: string;
+  label: string;
+  tone: "money" | "score" | "feedback" | "data";
+  taskId?: number;
 }

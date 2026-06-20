@@ -3,7 +3,8 @@
 // reads the current implied probability and follows the leading side; offline:
 // the deterministic mirrorDecision (bet 10e6 on the larger pool iff |p−0.5|>0.10).
 import { runBettor } from "./lib/bettor-runtime.js";
-import { mirrorDecision, mirrorWaitMs } from "./lib/strategies.js";
+import { mirrorDecision, mirrorWaitMs, type Decision } from "./lib/strategies.js";
+import { reportBet } from "./lib/report.js";
 import { llmEnabled } from "./mastra/model.js";
 import { llmBetDecision, toDecision } from "./mastra/agents.js";
 
@@ -24,12 +25,22 @@ runBettor({
           trust: null,
         });
         console.log(`[bettorMirror] 🪞 ${d.action} ${d.side ?? ""} ${d.amountUsdc}u — ${d.reasoning}`);
-        return toDecision(d);
+        const decision = toDecision(d);
+        reportBet("bettorMirror", task.taskId, decision, d.reasoning, "gemini");
+        return decision;
       } catch (err) {
         console.error(`[bettorMirror] LLM decision failed (${(err as Error).message}); using rule`);
       }
     }
-    return mirrorDecision(odds.pBps);
+    const ruleDecision: Decision = mirrorDecision(odds.pBps);
+    reportBet(
+      "bettorMirror",
+      task.taskId,
+      ruleDecision,
+      `Deterministic mirrorDecision following the money (implied ${(odds.pBps / 100).toFixed(1)}%)`,
+      "rule",
+    );
+    return ruleDecision;
   },
 }).catch((err) => {
   console.error("[bettorMirror] fatal:", err);

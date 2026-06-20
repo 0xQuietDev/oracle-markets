@@ -32,3 +32,21 @@ export function specName(specUri: string): string {
   const last = specUri.split("/").pop() ?? specUri;
   return last.replace(/\.json$/i, "");
 }
+
+/** 0x1234…cdef — short hash/address for chips. */
+export function shortHash(h: string | null | undefined): string {
+  if (!h) return "—";
+  return h.length > 12 ? `${h.slice(0, 6)}…${h.slice(-4)}` : h;
+}
+
+/** ¢ price (0..100) from probability bps. */
+export function centsFromBps(pBps: number): number {
+  return Math.round(pBps / 100);
+}
+
+/** wall-clock HH:MM:SS from a unix-ms (or unix-s) timestamp. */
+export function clockTime(ts: number): string {
+  const ms = ts > 1e12 ? ts : ts * 1000;
+  const d = new Date(ms);
+  return d.toLocaleTimeString("en-US", { hour12: false });
+}

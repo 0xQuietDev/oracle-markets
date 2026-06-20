@@ -18,6 +18,33 @@ import { SIDE_YES, SIDE_NO, type Decision } from "../lib/strategies.js";
 const MIN_BET = 100_000n; // DESIGN §6.2
 const MAX_BET_USDC = 25;
 
+// Gemini calls are best-effort hardened: a transient failure (rate limit,
+// network blip) is retried RETRY_TRIES times with ~RETRY_BACKOFF_MS backoff
+// before we give up and let the CALLER fall back to its deterministic logic.
+// On success the function returns normally — the caller tags source:"gemini".
+// After exhausting retries it THROWS, so the caller's existing try/catch fires
+// and tags source:"rule". Decision logic itself is untouched.
+const RETRY_TRIES = 2;
+const RETRY_BACKOFF_MS = 1500;
+
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= RETRY_TRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < RETRY_TRIES) {
+        console.error(
+          `[gemini] ${label} attempt ${attempt}/${RETRY_TRIES} failed (${(err as Error).message}); retrying in ${RETRY_BACKOFF_MS}ms`,
+        );
+        await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 // ---------------------------------------------------------------- worker
 
 export const workerAgent = new Agent({
@@ -53,36 +80,40 @@ function specBlock(spec: TaskSpec): string {
 
 /** Worker's genuine self-assessment → confidence in [0,1]. */
 export async function llmConfidence(spec: TaskSpec): Promise<{ confidence: number; reasoning: string }> {
-  const res = await workerAgent.generate(
-    [
-      {
-        role: "user",
-        content:
-          `Assess your probability of passing the FULL hidden test suite for this task. ` +
-          `The public spec below shows only example cases; hidden tests may probe edge cases and domain knowledge not listed.\n\n${specBlock(spec)}`,
-      },
-    ],
-    { structuredOutput: { schema: ConfidenceSchema } },
-  );
-  return await res.object;
+  return withRetry("llmConfidence", async () => {
+    const res = await workerAgent.generate(
+      [
+        {
+          role: "user",
+          content:
+            `Assess your probability of passing the FULL hidden test suite for this task. ` +
+            `The public spec below shows only example cases; hidden tests may probe edge cases and domain knowledge not listed.\n\n${specBlock(spec)}`,
+        },
+      ],
+      { structuredOutput: { schema: ConfidenceSchema } },
+    );
+    return await res.object;
+  });
 }
 
 /** Worker actually writes the solution. Returns sanitized standalone module source. */
 export async function llmSolution(spec: TaskSpec, fnName: string): Promise<string> {
-  const res = await workerAgent.generate(
-    [
-      {
-        role: "user",
-        content:
-          `Implement this function as a single standalone TypeScript module. ` +
-          `Export exactly one function named \`${fnName}\` matching the signature. ` +
-          `No imports, no markdown fences, no explanation — only the module source.\n\n${specBlock(spec)}`,
-      },
-    ],
-    { structuredOutput: { schema: SolutionSchema } },
-  );
-  const obj = await res.object;
-  return sanitizeCode(obj.code, fnName);
+  return withRetry("llmSolution", async () => {
+    const res = await workerAgent.generate(
+      [
+        {
+          role: "user",
+          content:
+            `Implement this function as a single standalone TypeScript module. ` +
+            `Export exactly one function named \`${fnName}\` matching the signature. ` +
+            `No imports, no markdown fences, no explanation — only the module source.\n\n${specBlock(spec)}`,
+        },
+      ],
+      { structuredOutput: { schema: SolutionSchema } },
+    );
+    const obj = await res.object;
+    return sanitizeCode(obj.code, fnName);
+  });
 }
 
 /**
@@ -181,11 +212,13 @@ export async function llmBetDecision(ctx: BetContext): Promise<BetDecisionLLM> {
   } else {
     lines.push("Worker track record: none available (cold start).");
   }
-  const res = await agent.generate(
-    [{ role: "user", content: `Decide your bet.\n\n${lines.join("\n")}` }],
-    { structuredOutput: { schema: BetSchema } },
-  );
-  return await res.object;
+  return withRetry(`llmBetDecision(${ctx.role})`, async () => {
+    const res = await agent.generate(
+      [{ role: "user", content: `Decide your bet.\n\n${lines.join("\n")}` }],
+      { structuredOutput: { schema: BetSchema } },
+    );
+    return await res.object;
+  });
 }
 
 /** Map an LLM bet decision onto the on-chain Decision with hard money guardrails. */

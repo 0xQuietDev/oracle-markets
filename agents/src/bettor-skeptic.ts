@@ -3,7 +3,8 @@
 // bets NO; offline: the deterministic skepticDecision rule (NO 20e6 when
 // selfStake/reward < 0.15 or the worker has no settled history).
 import { runBettor, settledCountFor } from "./lib/bettor-runtime.js";
-import { skepticDecision } from "./lib/strategies.js";
+import { skepticDecision, type Decision } from "./lib/strategies.js";
+import { reportBet } from "./lib/report.js";
 import { llmEnabled } from "./mastra/model.js";
 import { llmBetDecision, toDecision } from "./mastra/agents.js";
 
@@ -26,12 +27,22 @@ runBettor({
           trust: n > 0 ? { n, winRate: 0.5, ssr: 0 } : null,
         });
         console.log(`[bettorSkeptic] 🦨 ${d.action} ${d.side ?? ""} ${d.amountUsdc}u — ${d.reasoning}`);
-        return toDecision(d);
+        const decision = toDecision(d);
+        reportBet("bettorSkeptic", task.taskId, decision, d.reasoning, "gemini");
+        return decision;
       } catch (err) {
         console.error(`[bettorSkeptic] LLM decision failed (${(err as Error).message}); using rule`);
       }
     }
-    return skepticDecision({ reward: task.reward, selfStake: task.selfStake }, n);
+    const ruleDecision: Decision = skepticDecision({ reward: task.reward, selfStake: task.selfStake }, n);
+    reportBet(
+      "bettorSkeptic",
+      task.taskId,
+      ruleDecision,
+      `Deterministic skepticDecision (settled history n=${n})`,
+      "rule",
+    );
+    return ruleDecision;
   },
 }).catch((err) => {
   console.error("[bettorSkeptic] fatal:", err);

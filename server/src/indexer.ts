@@ -6,6 +6,7 @@ import { ORACLE_CORE_ABI, VALIDATION_REGISTRY_ABI, OUTCOME } from "@oracle/share
 import type { Deployment } from "@oracle/shared/config";
 import type { OracleDb, TaskRow } from "./db.js";
 import type { WsMessage } from "./ws.js";
+import type { TxEvent, TxKind } from "@oracle/shared/console-types";
 import { computeTrustCore, settledInputsFor } from "./trust.js";
 
 const CORE_EVENTS = ORACLE_CORE_ABI.filter((i) => i.type === "event") as unknown as AbiEvent[];
@@ -18,7 +19,19 @@ export type IndexerOptions = {
   dep: Deployment;
   client: PublicClient;
   broadcast?: (msg: WsMessage) => void;
+  onTx?: (tx: TxEvent) => void; // buffer hook for the demo-console tx ring
   pollingInterval?: number;
+};
+
+// OracleCore event -> console tx kind + human label (spec 2026-06-13-demo-console).
+const TX_KIND: Record<string, { kind: TxKind; label: string }> = {
+  TaskCreated: { kind: "create", label: "Task created" },
+  TaskAccepted: { kind: "accept", label: "Worker accepted + staked" },
+  BetPlaced: { kind: "bet", label: "Bet placed" },
+  DeliverySubmitted: { kind: "deliver", label: "Delivery submitted" },
+  OutcomeResolved: { kind: "settle", label: "Outcome resolved" },
+  FeedbackPosted: { kind: "feedback", label: "Feedback posted" },
+  Claimed: { kind: "claim", label: "Payout claimed" },
 };
 
 export type Indexer = { stop: () => void };
@@ -34,8 +47,24 @@ type AnyLog = {
 export async function startIndexer(opts: IndexerOptions): Promise<Indexer> {
   const { db, dep, client } = opts;
   const broadcast = opts.broadcast ?? (() => {});
+  const onTx = opts.onTx ?? (() => {});
   const pollingInterval = opts.pollingInterval ?? 1000;
   const tsCache = new Map<bigint, number>();
+
+  /** Buffer + broadcast a console tx event for an on-chain log we already index. */
+  function emitTx(log: AnyLog, ts: number): void {
+    const m = TX_KIND[log.eventName];
+    if (!m || !log.transactionHash) return;
+    const tx: TxEvent = {
+      ts,
+      taskId: Number(log.args.taskId),
+      kind: m.kind,
+      txHash: log.transactionHash,
+      label: m.label,
+    };
+    onTx(tx);
+    broadcast({ type: "tx", tx });
+  }
 
   async function blockTime(bn: bigint): Promise<number> {
     const hit = tsCache.get(bn);
@@ -94,6 +123,7 @@ export async function startIndexer(opts: IndexerOptions): Promise<Indexer> {
   async function handleCoreLog(log: AnyLog): Promise<void> {
     const a = log.args;
     const ts = await blockTime(log.blockNumber);
+    emitTx(log, ts);
     switch (log.eventName) {
       case "TaskCreated": {
         const taskId = Number(a.taskId);

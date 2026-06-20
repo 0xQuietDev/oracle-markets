@@ -5,6 +5,7 @@ import express from "express";
 import { PORTS, PRICES, loadDeployment } from "@oracle/shared";
 import { makeClients } from "./lib/chain.js";
 import { makeGate } from "./lib/payments.js";
+import { reportPayment, x402Settlement } from "./lib/report.js";
 
 const deployment = loadDeployment();
 const c = makeClients("vendor", deployment);
@@ -18,7 +19,20 @@ app.get(
     priceUnits: PRICES.vendorInput,
     description: "ORACLE demo task input (unicode folding hint)",
   }),
-  (_req, res) => {
+  (req, res) => {
+    // The gate above only reaches here once x402 settlement succeeded — a real
+    // paid request. Best-effort report it to the console payment channel.
+    const { from, txHash } = x402Settlement(
+      (n) => req.header(n),
+      res.getHeader("X-PAYMENT-RESPONSE") as string | undefined,
+    );
+    reportPayment({
+      from,
+      to: c.account.address,
+      amountUnits: String(PRICES.vendorInput),
+      purpose: "vendor",
+      txHash,
+    });
     res.json({ hint: "unicode NFKD fold", ts: Date.now() });
   },
 );

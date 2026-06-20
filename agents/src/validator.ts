@@ -22,6 +22,7 @@ import {
 import { templateFromSpecURI } from "./lib/confidence.js";
 import { runHarness } from "./lib/harness.js";
 import { makeGate } from "./lib/payments.js";
+import { reportActivity, reportPayment, x402Settlement } from "./lib/report.js";
 
 async function main() {
   const deployment = loadDeployment();
@@ -44,6 +45,20 @@ async function main() {
     (req, res) => {
       const { taskId, evidenceURI } = (req.body ?? {}) as { taskId?: number; evidenceURI?: string };
       console.log(`[validator] intake paid for task ${taskId} (${evidenceURI ?? "no evidence yet"})`);
+      // The gate above only runs this handler once x402 settlement succeeded, so
+      // reaching here means a real paid request was received.
+      const { from, txHash } = x402Settlement(
+        (n) => req.header(n),
+        res.getHeader("X-PAYMENT-RESPONSE") as string | undefined,
+      );
+      reportPayment({
+        taskId: typeof taskId === "number" ? taskId : undefined,
+        from,
+        to: c.account.address,
+        amountUnits: String(PRICES.validatorIntake),
+        purpose: "validator-intake",
+        txHash,
+      });
       res.json({ ok: true, taskId: taskId ?? null, recordedAt: Date.now() });
     },
   );
@@ -75,6 +90,14 @@ async function main() {
 
       const { passed, total, score } = await runHarness(template, solution, `task-${key}`);
       console.log(`[validator] task ${taskId}: ${passed}/${total} passed -> score ${score}`);
+      reportActivity({
+        taskId: Number(taskId),
+        agent: "ORACLE Validator",
+        role: "validator",
+        kind: "verdict",
+        text: `${passed}/${total} hidden tests passed`,
+        score,
+      });
 
       const report = JSON.stringify(
         {

@@ -29,8 +29,11 @@ import {
 } from "./lib/confidence.js";
 import { deliverableSource, hasSolver } from "./lib/deliverables.js";
 import { makePaidFetch } from "./lib/payments.js";
+import { reportActivity } from "./lib/report.js";
 import { llmEnabled, GEMINI_MODEL } from "./mastra/model.js";
 import { llmConfidence, llmSolution } from "./mastra/agents.js";
+
+const WORKER_AGENT = "ORACLE Worker";
 
 const VENDOR_URL = process.env.ORACLE_VENDOR_URL ?? `http://localhost:${PORTS.vendor}`;
 const VALIDATOR_INTAKE_URL =
@@ -76,16 +79,44 @@ async function main() {
 
       // 2. assess confidence -> stake -> accept (acceptance IS a bet on yourself)
       let conf: number;
+      let confSource: "gemini" | "rule" = "rule";
+      let confReasoning = "";
       if (llmEnabled()) {
-        const a = await llmConfidence(spec);
-        conf = a.confidence;
-        console.log(`[worker] task ${taskId}: [${GEMINI_MODEL}] confidence=${conf.toFixed(2)} — ${a.reasoning}`);
+        try {
+          const a = await llmConfidence(spec);
+          conf = a.confidence;
+          confSource = "gemini";
+          confReasoning = a.reasoning;
+          console.log(`[worker] task ${taskId}: [${GEMINI_MODEL}] confidence=${conf.toFixed(2)} — ${a.reasoning}`);
+        } catch (err) {
+          conf = estimateConfidence(spec);
+          confReasoning = `deterministic confidence estimate (LLM failed: ${(err as Error).message})`;
+          console.error(`[worker] task ${taskId}: LLM confidence failed (${(err as Error).message}); using rule`);
+        }
       } else {
         conf = estimateConfidence(spec);
+        confReasoning = "deterministic confidence estimate (offline)";
       }
+      reportActivity({
+        taskId: Number(taskId),
+        agent: WORKER_AGENT,
+        role: "worker",
+        kind: "confidence",
+        text: confReasoning,
+        confidence: conf,
+        source: confSource,
+      });
       const stake = stakeFor(t.reward, conf);
       console.log(`[worker] task ${taskId}: template=${template} conf=${conf} stake=${stake} units`);
       await writeOracle(c, "acceptAndStake", [taskId, myAgentId, stake]);
+      reportActivity({
+        taskId: Number(taskId),
+        agent: WORKER_AGENT,
+        role: "worker",
+        kind: "accept",
+        text: `Accepted task and staked ${stake} units on myself`,
+        amount: stake.toString(),
+      });
 
       // 3. market freeze — wait out the betting window on chain time
       const accepted = await getTask(c, taskId);
@@ -104,9 +135,11 @@ async function main() {
       // 5. produce deliverable = standalone module source.
       //    Real mode: Gemini writes the solution. Fallback: canned solver (if any).
       let source: string;
+      let solSource: "gemini" | "rule" = "rule";
       if (llmEnabled()) {
         try {
           source = await llmSolution(spec, fnName);
+          solSource = "gemini";
           console.log(`[worker] task ${taskId}: [${GEMINI_MODEL}] wrote ${source.length}-char solution for ${fnName}()`);
         } catch (err) {
           if (!hasSolver(template)) throw err;
@@ -116,6 +149,18 @@ async function main() {
       } else {
         source = deliverableSource(template);
       }
+      reportActivity({
+        taskId: Number(taskId),
+        agent: WORKER_AGENT,
+        role: "worker",
+        kind: "solution",
+        text:
+          solSource === "gemini"
+            ? `Wrote ${source.length}-char solution for ${fnName}()`
+            : `Used canned ${template} solver for ${fnName}()`,
+        code: source,
+        source: solSource,
+      });
       const deliverableHash = keccak256(stringToBytes(source));
       const upload = await fetch(`${SERVER_URL}/artifacts`, {
         method: "POST",
@@ -156,6 +201,13 @@ async function main() {
       ]);
       await writeOracle(c, "submitDelivery", [taskId, deliverableHash, evidenceURI]);
       console.log(`[worker] task ${taskId}: validationRequest filed (${requestHash}), delivered`);
+      reportActivity({
+        taskId: Number(taskId),
+        agent: WORKER_AGENT,
+        role: "worker",
+        kind: "deliver",
+        text: `Delivered solution and filed validation request`,
+      });
     } catch (err) {
       console.error(`[worker] task ${taskId} failed:`, err);
       inFlight.delete(key); // allow retry on next sighting
@@ -171,6 +223,14 @@ async function main() {
     try {
       await writeOracle(c, "claim", [taskId]);
       console.log(`[worker] claimed task ${taskId}`);
+      reportActivity({
+        taskId: Number(taskId),
+        agent: WORKER_AGENT,
+        role: "worker",
+        kind: "claim",
+        text: `Claimed reward + stake for task ${taskId}`,
+        amount: t.reward.toString(),
+      });
     } catch (err) {
       console.log(`[worker] claim(${taskId}) reverted (lost stake / NothingToClaim):`, (err as Error).message);
     }

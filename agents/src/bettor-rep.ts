@@ -3,7 +3,8 @@
 // very feed ORACLE sells. Real mode: a Gemini agent reasons over that data;
 // offline: the deterministic repDecision rule. It buys the trust feed either way.
 import { runBettor } from "./lib/bettor-runtime.js";
-import { repDecision, type WorkerTuple } from "./lib/strategies.js";
+import { repDecision, type Decision, type WorkerTuple } from "./lib/strategies.js";
+import { reportBet } from "./lib/report.js";
 import { llmEnabled } from "./mastra/model.js";
 import { llmBetDecision, toDecision } from "./mastra/agents.js";
 
@@ -33,12 +34,22 @@ runBettor({
           trust: tuple.n > 0 ? tuple : null,
         });
         console.log(`[bettorRep] 🧠 ${d.action} ${d.side ?? ""} ${d.amountUsdc}u — ${d.reasoning}`);
-        return toDecision(d);
+        const decision = toDecision(d);
+        reportBet("bettorRep", task.taskId, decision, d.reasoning, "gemini");
+        return decision;
       } catch (err) {
         console.error(`[bettorRep] LLM decision failed (${(err as Error).message}); using rule`);
       }
     }
-    return repDecision(tuple, { reward: task.reward, selfStake: task.selfStake });
+    const ruleDecision: Decision = repDecision(tuple, { reward: task.reward, selfStake: task.selfStake });
+    reportBet(
+      "bettorRep",
+      task.taskId,
+      ruleDecision,
+      `Deterministic repDecision over trust tuple (n=${tuple.n}, winRate=${tuple.winRate}, ssr=${tuple.ssr})`,
+      "rule",
+    );
+    return ruleDecision;
   },
 }).catch((err) => {
   console.error("[bettorRep] fatal:", err);
