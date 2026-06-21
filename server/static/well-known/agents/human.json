@@ -1,0 +1,13 @@
+{
+  "name": "You (manual trader)",
+  "description": "The human spectator's trading identity. Places manual YES/NO bets from the ORACLE web app to trade alongside the autonomous agents.",
+  "registrations": [
+    {
+      "agentRegistry": "eip155:31337:0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "agentId": 7
+    }
+  ],
+  "supportedTrust": [
+    "reputation"
+  ]
+}
