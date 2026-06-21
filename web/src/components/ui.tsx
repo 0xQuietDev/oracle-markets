@@ -4,36 +4,44 @@
 import { Chip } from "@heroui/react";
 import { roleMeta } from "./AgentAvatar.js";
 
-/** A circular emoji avatar for an agent role, sized for feeds / nodes. */
+/** A circular emoji avatar for an agent role, sized for feeds / nodes. Wrapped
+ * in a soft brand gradient ring. */
 export function RoleBadge({ role, size = "md" }: { role: string; size?: "sm" | "md" | "lg" }) {
   const m = roleMeta(role);
   const dim =
     size === "lg" ? "size-10 text-xl" : size === "sm" ? "size-7 text-sm" : "size-9 text-lg";
   return (
     <span
-      className={`flex ${dim} shrink-0 items-center justify-center rounded-full bg-surface-secondary ring-1 ring-default/60`}
-      role="img"
-      aria-label={m.name}
-      title={m.name}
+      className="shrink-0 rounded-full p-px"
+      style={{
+        background: "linear-gradient(135deg, color-mix(in oklch, var(--g1) 55%, transparent), color-mix(in oklch, var(--g3) 45%, transparent))",
+      }}
     >
-      {m.emoji}
+      <span
+        className={`flex ${dim} items-center justify-center rounded-full bg-[oklch(0.18_0.025_282)]`}
+        role="img"
+        aria-label={m.name}
+        title={m.name}
+      >
+        {m.emoji}
+      </span>
     </span>
   );
 }
 
-/** 🧠 Gemini vs ⚙️ rule honesty tag. */
+/** 🧠 Gemini vs ⚙️ rule honesty tag — refined micro-chips. */
 export function SourceTag({ source }: { source?: "gemini" | "rule" }) {
   if (source === "gemini")
     return (
-      <Chip size="sm" variant="soft" color="accent">
-        <Chip.Label>🧠 Gemini</Chip.Label>
-      </Chip>
+      <span className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_oklch,var(--g2)_45%,transparent)] bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-medium text-foreground/85">
+        🧠 Gemini
+      </span>
     );
   if (source === "rule")
     return (
-      <Chip size="sm" variant="soft" color="default">
-        <Chip.Label>⚙️ rule</Chip.Label>
-      </Chip>
+      <span className="inline-flex items-center gap-1 rounded-full border border-[var(--glass-border)] bg-[oklch(0.99_0_0/0.04)] px-2 py-0.5 text-[10px] font-medium text-muted">
+        ⚙️ rule
+      </span>
     );
   return null;
 }

@@ -5,7 +5,7 @@
 // Toast announces "Task #N created"; on failure a danger Toast explains why.
 // When control is unavailable the Select + Button are disabled with the reason.
 
-import { Button, Card, Label, ListBox, Select, Spinner, toast } from "@heroui/react";
+import { Button, Label, ListBox, Select, Spinner, toast } from "@heroui/react";
 import { useEffect, useState } from "react";
 import { REST_BASE } from "../ws.js";
 
@@ -87,16 +87,16 @@ export function NewTaskControl() {
   };
 
   return (
-    <Card className="w-full" variant="secondary">
-      <Card.Header>
-        <Card.Title className="flex items-center gap-2 text-base">
+    <section className="glass flex w-full flex-col gap-4 rounded-2xl p-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-display flex items-center gap-2 text-base font-semibold text-foreground">
           <span aria-hidden>🚀</span> New task
-        </Card.Title>
-        <Card.Description>
-          Post a task on-chain as the client and watch the agents trade its outcome.
-        </Card.Description>
-      </Card.Header>
-      <Card.Content>
+        </h2>
+        <p className="text-sm text-muted">
+          Post a task on-chain and watch the market price it.
+        </p>
+      </div>
+      <div>
         {load.status === "loading" ? (
           <div className="flex items-center gap-2 text-sm text-muted">
             <Spinner size="sm" /> checking control plane…
@@ -144,7 +144,7 @@ export function NewTaskControl() {
         {!available && load.status !== "loading" && reason && (
           <p className="mt-2 text-xs text-warning">⚠ {reason}</p>
         )}
-      </Card.Content>
-    </Card>
+      </div>
+    </section>
   );
 }

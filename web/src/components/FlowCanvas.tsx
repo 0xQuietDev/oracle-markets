@@ -85,7 +85,13 @@ export function FlowCanvas({
   );
 
   return (
-    <div className="h-[420px] w-full overflow-hidden rounded-xl border border-default/60 bg-surface/40">
+    <div className="glass relative h-[420px] w-full overflow-hidden rounded-2xl">
+      <div className="pointer-events-none absolute left-4 top-3 z-10 flex items-center gap-2">
+        <span className="font-display text-sm font-semibold text-foreground/80">Agent flow</span>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          live · x402 + on-chain
+        </span>
+      </div>
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -25,29 +25,32 @@ export function AgentNode({ data }: NodeProps) {
       onClick={() => d.onOpen(d.role, d.label)}
       title={`Open ${d.label} history`}
       className={[
-        "flex w-[120px] cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-left transition",
-        "ring-1 backdrop-blur",
-        infra
-          ? "border-dashed bg-surface/70 ring-default/50 text-muted"
-          : "bg-surface ring-default/70 text-foreground hover:ring-accent/60",
+        "group flex w-[150px] cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all duration-200",
+        "glass hover:glass-2",
+        infra ? "opacity-80 hover:opacity-100" : "",
         d.lit ? "oracle-node-lit" : "",
       ].join(" ")}
+      style={{ borderStyle: infra ? "dashed" : "solid" }}
     >
-      <Handle type="target" position={Position.Left} className="!size-1.5 !border-0 !bg-default" />
-      <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-default" />
-      <Handle type="source" position={Position.Right} className="!size-1.5 !border-0 !bg-default" />
-      <Handle type="source" position={Position.Bottom} className="!size-1.5 !border-0 !bg-default" />
+      <Handle type="target" position={Position.Left} className="!size-1.5 !border-0 !bg-white/30" />
+      <Handle type="target" position={Position.Top} className="!size-1.5 !border-0 !bg-white/30" />
+      <Handle type="source" position={Position.Right} className="!size-1.5 !border-0 !bg-white/30" />
+      <Handle type="source" position={Position.Bottom} className="!size-1.5 !border-0 !bg-white/30" />
       <span
-        className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-base ${
-          infra ? "bg-surface-secondary" : "bg-surface-secondary"
-        }`}
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-base"
+        style={{
+          background: d.lit
+            ? "linear-gradient(135deg, color-mix(in oklab, var(--g1) 32%, transparent), color-mix(in oklab, var(--g3) 32%, transparent))"
+            : "oklch(1 0 0 / 0.06)",
+          boxShadow: "inset 0 0 0 1px oklch(1 0 0 / 0.08)",
+        }}
         aria-hidden
       >
         {d.emoji}
       </span>
       <div className="flex min-w-0 flex-col leading-tight">
-        <span className="truncate text-sm font-semibold">{d.label}</span>
-        <span className="truncate text-[10px] uppercase tracking-wide text-muted">
+        <span className="truncate text-sm font-semibold text-foreground">{d.label}</span>
+        <span className="truncate font-mono text-[10px] uppercase tracking-wider text-muted">
           {infra ? "infra" : d.role}
         </span>
       </div>

@@ -1,27 +1,54 @@
-/* Tailwind CSS v4 — must be first */
+/* Fonts first (deliberate pairing: Space Grotesk display / Inter body / JetBrains Mono data) */
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+/* Tailwind CSS v4 */
 @import "tailwindcss";
 
-/* HeroUI v3 styles — must come after Tailwind */
+/* HeroUI v3 styles — after Tailwind */
 @import "@heroui/styles";
 
 /* React Flow base chrome */
 @import "@xyflow/react/dist/style.css";
 
-/* HeroUI dark theme is selected on <html class="dark" data-theme="dark"> (index.html).
-   ORACLE brand: a market-terminal accent; YES/NO map to success/danger semantics.
-   Everything else is styled with Tailwind utilities + HeroUI components — no
-   hand-rolled component classes live here. */
+/* ============================================================================
+   ORACLE — "Control Room" theme.
+   Subject: a live prediction market on AI-agent task completion.
+   Aesthetic risk (spent in ONE place): a violet→indigo→blue brand gradient
+   (tars.pro lineage) lighting the live price + flow, over a faint grid + bloom.
+   Everything else: quiet glassmorphic panels on a deep indigo-black field.
+   ============================================================================ */
+
 :root,
 [data-theme="dark"] {
-  --accent: oklch(0.72 0.17 250); /* electric blue — ORACLE brand */
-  --accent-foreground: oklch(0.99 0 0);
-}
+  /* deep field */
+  --bg-deep: oklch(0.16 0.025 280);
+  --bg-deep-2: oklch(0.13 0.02 282);
 
-/* Market YES/NO tokens used by the board + flow (consumed via arbitrary
-   Tailwind values like text-[var(--yes)] / bg-[var(--no)]). */
-:root {
-  --yes: oklch(0.74 0.18 152); /* green */
-  --no: oklch(0.64 0.21 25); /* red */
+  /* brand gradient stops (violet → indigo → blue) */
+  --g1: oklch(0.66 0.23 300); /* violet */
+  --g2: oklch(0.6 0.21 280); /* indigo */
+  --g3: oklch(0.68 0.16 248); /* blue */
+  --brand: var(--g2);
+  --brand-soft: color-mix(in oklab, var(--g2) 22%, transparent);
+
+  /* HeroUI accent → our brand */
+  --accent: var(--g2);
+  --accent-foreground: oklch(0.99 0 0);
+
+  /* market semantics */
+  --yes: oklch(0.8 0.18 158); /* mint green */
+  --no: oklch(0.67 0.22 18); /* rose red */
+
+  /* glass + lines */
+  --glass-bg: oklch(0.99 0 0 / 0.035);
+  --glass-bg-2: oklch(0.99 0 0 / 0.06);
+  --glass-border: oklch(0.99 0 0 / 0.09);
+  --grid-line: oklch(0.99 0 0 / 0.025);
+
+  /* type roles */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
 
 html,
@@ -32,76 +59,146 @@ body,
 
 body {
   margin: 0;
-  background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
+  font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
+  /* layered field: radial violet bloom (top) + deep gradient + fixed grid */
+  background-color: var(--bg-deep);
+  background-image:
+    radial-gradient(1200px 620px at 50% -8%, color-mix(in oklab, var(--g1) 26%, transparent), transparent 70%),
+    radial-gradient(900px 600px at 88% 8%, color-mix(in oklab, var(--g3) 16%, transparent), transparent 65%),
+    linear-gradient(180deg, var(--bg-deep), var(--bg-deep-2));
+  background-attachment: fixed;
 }
 
-/* tabular figures for money / prices */
+/* faint engineering grid overlay (the tars "mesh") — fixed, non-interactive */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, black, transparent 80%);
+}
+
+/* very low-opacity film-grain noise for tactile depth */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- utilities ---- */
+
+.font-display { font-family: var(--font-display); }
+.font-mono,
 .tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
+.font-mono { font-family: var(--font-mono); }
 
-/* React Flow surface is transparent so our own panel background shows through */
+/* glassmorphic panel: subtle fill, blur, hairline border, top inner highlight */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow:
+    0 1px 0 0 oklch(1 0 0 / 0.06) inset,
+    0 24px 60px -28px oklch(0 0 0 / 0.7);
+}
+.glass-2 { background: var(--glass-bg-2); }
+
+/* brand gradient text (the signature) */
+.grad-text {
+  background-image: linear-gradient(105deg, var(--g1), var(--g2) 45%, var(--g3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* gradient hairline / rim for the hero panel */
+.grad-rim {
+  position: relative;
+}
+.grad-rim::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, color-mix(in oklab, var(--g1) 60%, transparent), transparent 40%, color-mix(in oklab, var(--g3) 55%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.brand-glow { box-shadow: 0 0 40px -8px var(--brand-soft); }
+
+/* React Flow surface transparent so the field shows through */
 .react-flow__renderer,
-.react-flow__pane {
-  background: transparent;
-}
-.react-flow__attribution {
-  display: none;
-}
+.react-flow__pane { background: transparent; }
+.react-flow__attribution { display: none; }
 
-/* Flow pulse dot + label: SVG/edge-layer styling React Flow needs in CSS */
-.oracle-pulse-dot {
-  filter: drop-shadow(0 0 6px currentColor);
-}
+/* flow pulse dot + label */
+.oracle-pulse-dot { filter: drop-shadow(0 0 6px currentColor); }
 .oracle-pulse-label {
   position: absolute;
   pointer-events: none;
   white-space: nowrap;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   padding: 2px 8px;
   border-radius: 9999px;
-  border: 1px solid;
-  background: oklch(0.18 0.02 265 / 0.92);
+  border: 1px solid var(--glass-border);
+  background: oklch(0.18 0.03 280 / 0.92);
   backdrop-filter: blur(4px);
 }
 
-/* Phase glow for lit flow nodes (Tailwind can't ring-pulse on a non-focus el) */
+/* lit flow node glow (brand) */
 @keyframes oracle-node-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 1px var(--accent), 0 0 12px -2px var(--accent);
-  }
-  50% {
-    box-shadow: 0 0 0 1px var(--accent), 0 0 22px 1px var(--accent);
-  }
+  0%, 100% { box-shadow: 0 0 0 1px var(--brand), 0 0 14px -2px var(--brand); }
+  50% { box-shadow: 0 0 0 1px var(--brand), 0 0 26px 1px var(--brand); }
 }
-.oracle-node-lit {
-  animation: oracle-node-glow 2s ease-in-out infinite;
+.oracle-node-lit { animation: oracle-node-glow 2s ease-in-out infinite; }
+
+/* hero gradient shimmer (signature only) */
+@keyframes oracle-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.grad-shimmer {
+  background-size: 200% 100%;
+  animation: oracle-shimmer 6s linear infinite;
 }
 
-/* Settlement flash overlay */
+/* settle flash */
 @keyframes oracle-settle-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
-.oracle-settle-flash {
-  animation: oracle-settle-in 0.35s ease-out;
-}
+.oracle-settle-flash { animation: oracle-settle-in 0.35s ease-out; }
 
-/* recharts focus outlines off */
 .recharts-wrapper:focus,
-.recharts-surface:focus {
-  outline: none;
+.recharts-surface:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .oracle-node-lit,
+  .grad-shimmer { animation: none; }
 }

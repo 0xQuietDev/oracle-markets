@@ -1,4 +1,4 @@
-import { Card, Toast } from "@heroui/react";
+import { Toast } from "@heroui/react";
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { AgentDrawer } from "./components/AgentDrawer.js";
 import { AgentFeed } from "./components/AgentFeed.js";
@@ -92,33 +92,31 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
+    <div className="flex h-full flex-col text-foreground">
       <Toast.Provider />
       <DirectorBar director={state.director} connected={state.connected} isMock={!!IS_MOCK} />
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto p-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <main className="mx-auto grid min-h-0 w-full max-w-[1480px] flex-1 grid-cols-1 gap-5 overflow-auto px-5 py-6 xl:grid-cols-[minmax(0,1fr)_400px]">
         {/* left / center column */}
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-5">
           {!IS_MOCK && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <NewTaskControl />
-              <Card variant="secondary">
-                <Card.Header>
-                  <Card.Title className="flex items-center gap-2 text-base">
+              <section className="glass flex flex-col gap-3 rounded-2xl p-5">
+                <div className="flex flex-col gap-1">
+                  <h2 className="font-display flex items-center gap-2 text-base font-semibold text-foreground">
                     <span aria-hidden>🎬</span> Run mode
-                  </Card.Title>
-                  <Card.Description>
+                  </h2>
+                  <p className="text-sm text-muted">
                     Switch to a recorded run, or stay on the live on-chain feed.
-                  </Card.Description>
-                </Card.Header>
-                <Card.Content>
-                  <ReplayControl
-                    replaying={state.director.mode === "replay"}
-                    onReplay={onReplay}
-                    onLive={onLive}
-                  />
-                </Card.Content>
-              </Card>
+                  </p>
+                </div>
+                <ReplayControl
+                  replaying={state.director.mode === "replay"}
+                  onReplay={onReplay}
+                  onLive={onLive}
+                />
+              </section>
             </div>
           )}
 
@@ -151,7 +149,7 @@ export default function App() {
         </div>
 
         {/* right rail */}
-        <div className="min-h-0 xl:sticky xl:top-0">
+        <div className="min-h-0 xl:sticky xl:top-6 xl:h-[calc(100vh-7rem)]">
           <AgentFeed items={state.activity} onOpenCode={setCodeItem} />
         </div>
       </main>

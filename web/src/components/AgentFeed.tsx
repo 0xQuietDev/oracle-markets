@@ -3,7 +3,7 @@
 // tag. Auto-scrolls to the newest line; solution lines are clickable → code
 // modal. Built on a HeroUI Card shell + ScrollShadow for the overflow.
 
-import { Card, Chip, ScrollShadow } from "@heroui/react";
+import { ScrollShadow } from "@heroui/react";
 import { useEffect, useRef } from "react";
 import { clockTime, usd } from "../format.js";
 import type { ActivityItem } from "../types.js";
@@ -23,20 +23,22 @@ export function AgentFeed({
   }, [items.length]);
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <Card.Header className="border-b border-default/50 pb-3">
-        <Card.Title className="flex items-center gap-2 text-base">
+    <section className="glass flex h-full min-h-0 flex-col rounded-2xl">
+      <div className="flex items-center justify-between border-b border-[var(--glass-border)] px-4 py-3.5">
+        <h2 className="font-display flex items-center gap-2 text-base font-semibold text-foreground">
           <span aria-hidden>💬</span> Agent reasoning
-        </Card.Title>
-      </Card.Header>
-      <Card.Content className="min-h-0 flex-1 p-0">
-        <ScrollShadow className="h-full max-h-[640px] px-3 py-2">
+        </h2>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-muted">live feed</span>
+      </div>
+      <div className="min-h-0 flex-1">
+        <ScrollShadow className="h-full px-3 py-3">
           {items.length === 0 && (
-            <div className="flex h-32 items-center justify-center text-sm text-muted">
-              Waiting for first task…
+            <div className="flex h-40 flex-col items-center justify-center gap-1 px-6 text-center">
+              <span className="text-sm font-medium text-foreground/70">No agent activity yet</span>
+              <span className="text-xs text-muted">Create a task to wake the fleet.</span>
             </div>
           )}
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-1.5">
             {items.map((it, i) => {
               const clickable = it.kind === "solution" && it.code;
               return (
@@ -51,10 +53,10 @@ export function AgentFeed({
                         : undefined
                     }
                     className={[
-                      "flex gap-3 rounded-xl p-2.5 transition",
+                      "flex gap-3 rounded-xl border border-transparent p-2.5 transition",
                       clickable
-                        ? "cursor-pointer bg-surface-secondary ring-1 ring-default/50 hover:ring-accent/60"
-                        : "hover:bg-surface-secondary/60",
+                        ? "glass-2 cursor-pointer border-[var(--glass-border)] hover:border-[color-mix(in_oklch,var(--g2)_50%,transparent)]"
+                        : "hover:glass-2 hover:border-[var(--glass-border)]",
                     ].join(" ")}
                   >
                     <RoleBadge role={it.role} />
@@ -63,21 +65,23 @@ export function AgentFeed({
                         <span className="text-sm font-semibold text-foreground">{it.agent}</span>
                         {it.side && <SideChip side={it.side} />}
                         {it.amount && (
-                          <span className="tnum text-xs font-medium text-muted">{usd(it.amount)}</span>
+                          <span className="font-mono tnum text-xs font-medium text-foreground/70">
+                            {usd(it.amount)}
+                          </span>
                         )}
                         {it.score != null && (
-                          <Chip size="sm" variant="soft" color="accent">
-                            <Chip.Label>score {it.score}</Chip.Label>
-                          </Chip>
+                          <span className="font-mono inline-flex items-center rounded-full border border-[color-mix(in_oklch,var(--g2)_40%,transparent)] bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-medium text-foreground/85">
+                            score {it.score}
+                          </span>
                         )}
                         <SourceTag source={it.source} />
-                        <span className="tnum ml-auto text-[10px] text-muted">
+                        <span className="font-mono tnum ml-auto text-[10px] text-muted">
                           {clockTime(it.ts)}
                         </span>
                       </div>
-                      <p className="text-sm leading-snug text-foreground/90">{it.text}</p>
+                      <p className="text-sm leading-relaxed text-foreground/90">{it.text}</p>
                       {clickable && (
-                        <span className="text-xs font-medium text-accent">
+                        <span className="grad-text text-xs font-semibold">
                           ⌨ view solution code →
                         </span>
                       )}
@@ -89,7 +93,7 @@ export function AgentFeed({
           </ul>
           <div ref={endRef} />
         </ScrollShadow>
-      </Card.Content>
-    </Card>
+      </div>
+    </section>
   );
 }
