@@ -37,9 +37,9 @@ const KEYS: Record<string, string> = {
   relayer: "FUJI_RELAYER_KEY",
 };
 
-// who needs gas (signs on-chain txs) and who needs USDC (spends).
-// vendor sends no chain txs (HTTP-only x402 seller), so it needs no gas.
-const NEEDS_GAS = ["client", "worker", "validator", "bettorRep", "bettorSkeptic", "bettorMirror", "human", "relayer"];
+// who needs gas and who needs USDC (spends). vendor sends no RUNTIME chain txs
+// but needs gas once for its ERC-8004 registration, so include it here.
+const NEEDS_GAS = ["client", "worker", "validator", "bettorRep", "bettorSkeptic", "bettorMirror", "vendor", "human", "relayer"];
 const NEEDS_USDC = ["client", "worker", "bettorRep", "bettorSkeptic", "bettorMirror", "human"];
 
 function addrOf(role: string): { key: Hex; address: Hex } {

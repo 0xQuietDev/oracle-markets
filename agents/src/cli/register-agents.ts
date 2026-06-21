@@ -12,6 +12,40 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { IDENTITY_REGISTRY_ABI, PORTS, type Deployment } from "@oracle/shared";
 import { makeClients, type Role } from "../lib/chain.js";
+import { parseAbi } from "viem";
+
+// extra views for idempotent recovery (no re-registration → no wasted gas)
+const ID_VIEWS = parseAbi([
+  "function balanceOf(address) view returns (uint256)",
+  "function getAgentWallet(uint256) view returns (address)",
+  "function register(string agentURI) returns (uint256)",
+]);
+
+/** If a wallet already owns an agent, find its id by scanning recent ids back
+ *  from the next-to-be-minted id (returned by simulating register). Avoids
+ *  re-registering — important so we never waste testnet AVAX. */
+async function recoverAgentId(
+  client: ReturnType<typeof makeClients>["publicClient"],
+  registry: `0x${string}`,
+  account: ReturnType<typeof makeClients>["account"],
+  wallet: `0x${string}`,
+): Promise<number | null> {
+  const bal = (await client.readContract({
+    address: registry, abi: ID_VIEWS, functionName: "balanceOf", args: [wallet],
+  })) as bigint;
+  if (bal === 0n) return null;
+  const { result: nextId } = await client.simulateContract({
+    account, address: registry, abi: ID_VIEWS, functionName: "register", args: ["recover-probe"],
+  });
+  const top = Number(nextId);
+  for (let id = top - 1; id >= Math.max(1, top - 80); id--) {
+    const owner = (await client.readContract({
+      address: registry, abi: ID_VIEWS, functionName: "getAgentWallet", args: [BigInt(id)],
+    })) as string;
+    if (owner.toLowerCase() === wallet.toLowerCase()) return id;
+  }
+  return null;
+}
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url)); // agents/src/cli -> repo root
 const WELL_KNOWN_DIR = join(REPO_ROOT, "server", "static", "well-known", "agents");
@@ -76,18 +110,34 @@ async function main() {
   for (const f of FLEET) {
     const c = makeClients(f.role, deployment);
     const agentURI = `http://localhost:${PORTS.server}/.well-known/agents/${f.file}.json`;
-    const { result, request } = await c.publicClient.simulateContract({
-      account: c.account,
-      address: deployment.contracts.identityRegistry,
-      abi: IDENTITY_REGISTRY_ABI,
-      functionName: "register",
-      args: [agentURI],
-    });
-    const hash = await c.walletClient.writeContract(request);
-    await c.publicClient.waitForTransactionReceipt({ hash });
-    const agentId = Number(result);
+
+    // Already in the saved map? skip (resumable, no gas).
+    let agentId = deployment.agents[f.role]?.agentId ?? agents[f.role]?.agentId ?? 0;
+    if (agentId > 0) {
+      console.log(`[register] ${f.role.padEnd(14)} agentId=${agentId} (already in map, skipped)`);
+    } else {
+      // Already registered on-chain from a prior run? recover its id (no gas).
+      const recovered = await recoverAgentId(
+        c.publicClient, deployment.contracts.identityRegistry, c.account, c.account.address,
+      );
+      if (recovered) {
+        agentId = recovered;
+        console.log(`[register] ${f.role.padEnd(14)} agentId=${agentId} (recovered, no re-register)`);
+      } else {
+        const { result, request } = await c.publicClient.simulateContract({
+          account: c.account,
+          address: deployment.contracts.identityRegistry,
+          abi: IDENTITY_REGISTRY_ABI,
+          functionName: "register",
+          args: [agentURI],
+        });
+        const hash = await c.walletClient.writeContract(request);
+        await c.publicClient.waitForTransactionReceipt({ hash });
+        agentId = Number(result);
+        console.log(`[register] ${f.role.padEnd(14)} agentId=${agentId} (registered) address=${c.account.address}`);
+      }
+    }
     agents[f.role] = { address: c.account.address, agentId };
-    console.log(`[register] ${f.role.padEnd(14)} agentId=${agentId} address=${c.account.address}`);
 
     const registration = {
       name: f.name,
@@ -101,10 +151,12 @@ async function main() {
       supportedTrust: ["reputation"],
     };
     writeFileSync(join(WELL_KNOWN_DIR, `${f.file}.json`), JSON.stringify(registration, null, 2) + "\n");
+
+    // Persist the map after EACH agent so a mid-run failure never loses progress
+    // (resumable; a re-run skips/recover instead of re-registering → no wasted gas).
+    writeFileSync(depPath, JSON.stringify({ ...deployment, agents }, null, 2) + "\n");
   }
 
-  const patched: Deployment = { ...deployment, agents };
-  writeFileSync(depPath, JSON.stringify(patched, null, 2) + "\n");
   console.log(`[register] patched ${depPath} (agents map) and wrote ${FLEET.length} registration JSONs to ${WELL_KNOWN_DIR}`);
 }
 
