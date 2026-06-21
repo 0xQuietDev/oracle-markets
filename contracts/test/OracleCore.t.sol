@@ -73,6 +73,46 @@ contract OracleCoreTest is Fixtures {
         core.createTask(workerId, 999, REWARD, deadline, keccak256("s"), "u");
     }
 
+    // U-1b open job board: workerAgentId == 0 creates an OPEN task that any
+    // eligible registered worker may claim first-come via acceptAndStake.
+    function test_U1b_openJob_anyWorkerCanClaim() public {
+        uint64 deadline = uint64(block.timestamp + 3000);
+        vm.prank(client);
+        uint256 taskId = core.createTask(0, validatorId, REWARD, deadline, keccak256("spec"), "u");
+
+        // created open: workerAgentId stored as 0
+        (, uint64 storedWorker,,,,,,,,,,,,,,,,,,) = core.tasks(taskId);
+        assertEq(storedWorker, 0);
+
+        // a registered worker claims it
+        vm.prank(worker);
+        core.acceptAndStake(taskId, workerId, STAKE);
+        (, uint64 nowWorker,,,,,,,,,,,,,,, OracleCore.TaskState st,,,) = core.tasks(taskId);
+        assertEq(nowWorker, workerId);
+        assertEq(uint8(st), uint8(OracleCore.TaskState.Open));
+    }
+
+    function test_U1b_openJob_bansClientAndValidator() public {
+        uint64 deadline = uint64(block.timestamp + 3000);
+
+        // client cannot claim its own open job
+        vm.prank(client);
+        uint256 t1 = core.createTask(0, validatorId, REWARD, deadline, keccak256("s"), "u");
+        // register the client as an agent so the controller check isn't what trips
+        vm.prank(client);
+        uint64 clientId = uint64(idReg.register("http://localhost:8402/.well-known/agents/client.json"));
+        vm.prank(client);
+        vm.expectRevert(OracleCore.RoleBanned.selector);
+        core.acceptAndStake(t1, clientId, STAKE);
+
+        // the assigned validator cannot claim the open job as worker
+        vm.prank(client);
+        uint256 t2 = core.createTask(0, validatorId, REWARD, deadline, keccak256("s"), "u");
+        vm.prank(validator);
+        vm.expectRevert(OracleCore.RoleBanned.selector);
+        core.acceptAndStake(t2, validatorId, STAKE);
+    }
+
     // ------------------------------------------------------------------
     // U-2 R0: cancelUnaccepted + full refund
     // ------------------------------------------------------------------

@@ -247,9 +247,15 @@ contract OracleCore is ReentrancyGuard, Ownable2Step, Pausable {
         string calldata specURI
     ) external whenNotPaused nonReentrant returns (uint256 taskId) {
         if (reward < MIN_REWARD) revert BadParams();
-        if (workerAgentId == validatorAgentId || workerAgentId == 0 || validatorAgentId == 0) revert BadParams();
+        // workerAgentId == 0 ⇒ OPEN job: any eligible registered worker may claim
+        // it via acceptAndStake (autonomous job board). A non-zero workerAgentId
+        // pre-assigns the worker (must exist and differ from the validator).
+        if (validatorAgentId == 0) revert BadParams();
+        if (workerAgentId != 0) {
+            if (workerAgentId == validatorAgentId) revert BadParams();
+            if (_agentOwner(workerAgentId) == address(0)) revert BadParams(); // worker agent must exist
+        }
         if (deadline <= block.timestamp + BETTING_WINDOW) revert BadParams();
-        if (_agentOwner(workerAgentId) == address(0)) revert BadParams(); // worker agent must exist
         address validatorWallet = _agentWallet(validatorAgentId);
         if (validatorWallet == address(0)) revert BadParams(); // validator agent must exist
 
@@ -286,7 +292,16 @@ contract OracleCore is ReentrancyGuard, Ownable2Step, Pausable {
     function acceptAndStake(uint256 taskId, uint64 workerAgentId, uint128 stake) external whenNotPaused nonReentrant {
         Task storage t = tasks[taskId];
         if (t.state != TaskState.Created) revert WrongState();
-        if (workerAgentId != t.workerAgentId) revert BadParams();
+        if (workerAgentId == 0) revert BadParams();
+        // OPEN job (t.workerAgentId == 0): any eligible registered worker may
+        // claim it first-come. Pre-assigned job: the claimer must match.
+        if (t.workerAgentId == 0) {
+            if (workerAgentId == t.validatorAgentId) revert RoleBanned(); // validator can't be the worker
+            if (msg.sender == t.client) revert RoleBanned(); // client can't be the worker
+            t.workerAgentId = workerAgentId;
+        } else if (workerAgentId != t.workerAgentId) {
+            revert BadParams();
+        }
         if (block.timestamp > uint256(t.createdAt) + ACCEPT_WINDOW) revert DeadlinePassed();
         if (!_isAgentController(workerAgentId, msg.sender)) revert NotAgentController();
         if (uint256(stake) < (uint256(t.reward) * MIN_SELF_STAKE_BPS) / BPS) revert BelowMinSelfStake();
