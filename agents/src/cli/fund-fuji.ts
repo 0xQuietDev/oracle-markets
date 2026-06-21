@@ -16,9 +16,10 @@ import { USDC_ABI, loadDeployment } from "@oracle/shared";
 
 const RPC = process.env.FUJI_RPC ?? "https://api.avax-test.network/ext/bc/C/rpc";
 
-// gas top-up per wallet, and USDC mint per spender
-const GAS_AVAX = process.env.FUND_GAS_AVAX ?? "0.15";
-const USDC_EACH = BigInt(process.env.FUND_USDC_EACH ?? "200") * 1_000_000n; // 200 USDC
+// gas top-up per wallet, and USDC mint per spender. Kept lean so a single small
+// faucet drip to the deployer stretches across the whole fleet (Fuji gas is cheap).
+const GAS_AVAX = process.env.FUND_GAS_AVAX ?? "0.03";
+const USDC_EACH = BigInt(process.env.FUND_USDC_EACH ?? "200") * 1_000_000n; // 200 USDC (our mint — free)
 
 // role -> env key name
 const KEYS: Record<string, string> = {
