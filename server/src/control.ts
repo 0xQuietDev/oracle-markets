@@ -164,7 +164,10 @@ export function makeControl(dep: Deployment, specsDir: string, baseUrl: string):
       const specBytes = new Uint8Array(readFileSync(join(specsDir, info.file)));
       const specHash = keccak256(specBytes);
       const specURI = `${baseUrl}/specs/${info.file}`;
-      const reward = BigInt(dep.params.minReward) >= 100_000_000n ? BigInt(dep.params.minReward) : 100_000_000n;
+      // Reward: TASK_REWARD_USDC env (whole USDC) if set, else 100 USDC, clamped
+      // to >= minReward. Keep it modest on Fuji to limit test-token spend.
+      const envReward = process.env.TASK_REWARD_USDC ? BigInt(process.env.TASK_REWARD_USDC) * 1_000_000n : 100_000_000n;
+      const reward = envReward >= BigInt(dep.params.minReward) ? envReward : BigInt(dep.params.minReward);
       const nowChain = (await publicClient.getBlock()).timestamp;
       const deadline = nowChain + BigInt(dep.params.bettingWindow + 600);
 

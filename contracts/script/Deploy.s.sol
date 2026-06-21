@@ -111,6 +111,11 @@ contract Deploy is Script {
         address repReg = vm.parseJsonAddress(existing, ".contracts.reputationRegistry");
         string memory rpcUrl = vm.parseJsonString(existing, ".rpcUrl");
 
+        // FUJI_USE_MOCK_USDC=1 (default): deploy our own EIP-3009 USDC so funding
+        // the fleet needs no Circle faucet — only AVAX gas. Set to 0 to use the
+        // canonical Circle USDC pinned in fuji.json (then fund USDC via faucet).
+        bool useMock = vm.envOr("FUJI_USE_MOCK_USDC", true);
+
         OracleCore.Params memory p = OracleCore.Params({
             minSelfStakeBps: uint16(vm.parseJsonUint(existing, ".params.minSelfStakeBps")),
             protocolFeeBps: uint16(vm.parseJsonUint(existing, ".params.protocolFeeBps")),
@@ -126,6 +131,10 @@ contract Deploy is Script {
         });
 
         vm.startBroadcast();
+        if (useMock) {
+            usdc = address(new MockUSDC()); // public mint() → fund the fleet with no faucet
+            MockUSDC(usdc).mint(msg.sender, 1_000_000e6);
+        }
         ValidationRegistry valReg = new ValidationRegistry();
         OracleCore core = new OracleCore(usdc, idReg, repReg, address(valReg), msg.sender, p);
         vm.stopBroadcast();
