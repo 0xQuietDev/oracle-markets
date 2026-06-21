@@ -298,6 +298,10 @@ export function createApp(opts: ApiOptions): Express {
       available: opts.control?.available ?? false,
       reason: opts.control?.reason,
       templates: opts.control?.templates() ?? [],
+      canBet: opts.control?.canBet ?? false,
+      humanAgentId: opts.control?.humanAgentId,
+      humanAddress: opts.control?.humanAddress,
+      minBet: dep.params.minBet,
     });
   });
 
@@ -318,6 +322,29 @@ export function createApp(opts: ApiOptions): Express {
       .catch((err) => {
         console.error("[control] createTask failed:", (err as Error).message);
         res.status(500).json({ error: "create_failed", message: (err as Error).message });
+      });
+  });
+
+  // POST /v1/control/bet { taskId, side: "YES"|"NO"|0|1, amountUnits } — manual human bet.
+  app.post("/v1/control/bet", jsonBody, (req, res) => {
+    if (!opts.control?.canBet) {
+      res.status(503).json({ error: "betting_unavailable", reason: opts.control?.reason });
+      return;
+    }
+    const body = (req.body ?? {}) as { taskId?: number; side?: string | number; amountUnits?: string };
+    const taskId = Number(body.taskId);
+    const side: 0 | 1 = body.side === "NO" || body.side === 1 || body.side === "1" ? 1 : 0;
+    const amountUnits = String(body.amountUnits ?? "");
+    if (!Number.isFinite(taskId) || !/^\d+$/.test(amountUnits)) {
+      res.status(400).json({ error: "bad_bet" });
+      return;
+    }
+    opts.control
+      .placeBet(taskId, side, amountUnits)
+      .then((r) => res.json({ ok: true, taskId, side: side === 0 ? "YES" : "NO", amountUnits, ...r }))
+      .catch((err) => {
+        console.error("[control] placeBet failed:", (err as Error).message);
+        res.status(500).json({ error: "bet_failed", message: (err as Error).message });
       });
   });
 

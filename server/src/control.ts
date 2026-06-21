@@ -18,6 +18,8 @@ import type { Deployment } from "@oracle/shared/config";
 
 // anvil account #1 (test mnemonic) — the demo "client" that posts tasks.
 const DEFAULT_CLIENT_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+// anvil account #0 — the UI's manual human bettor (registered as the `human` agent).
+const DEFAULT_HUMAN_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 export type TemplateInfo = { template: string; file: string; fn: string; title: string };
 
@@ -26,6 +28,11 @@ export type Control = {
   reason?: string;
   templates: () => TemplateInfo[];
   createTask: (template: string) => Promise<{ taskId: number; txHash: Hex; deadline: number }>;
+  // manual human trading
+  canBet: boolean;
+  humanAgentId?: number;
+  humanAddress?: string;
+  placeBet: (taskId: number, side: 0 | 1, amountUnits: string) => Promise<{ txHash: Hex }>;
 };
 
 /** Enumerate spec files in static/specs as the task templates the UI can post. */
@@ -56,19 +63,6 @@ export function makeControl(dep: Deployment, specsDir: string, baseUrl: string):
 
   const worker = dep.agents.worker;
   const validator = dep.agents.validator;
-  if (!worker || !validator) {
-    return {
-      available: false,
-      reason: "agents map incomplete — run register-agents",
-      templates,
-      createTask: async () => {
-        throw new Error("control unavailable: agents not registered");
-      },
-    };
-  }
-
-  const key = (process.env.CLIENT_KEY ?? DEFAULT_CLIENT_KEY) as Hex;
-  const account = privateKeyToAccount(key);
   const chain = defineChain({
     id: dep.chainId,
     name: dep.chainId === 43113 ? "avalanche-fuji" : "anvil-local",
@@ -77,32 +71,91 @@ export function makeControl(dep: Deployment, specsDir: string, baseUrl: string):
   });
   const transport = viemHttp(dep.rpcUrl);
   const publicClient = createPublicClient({ chain, transport });
+
+  if (!worker || !validator) {
+    return {
+      available: false,
+      reason: "agents map incomplete — run register-agents",
+      templates,
+      createTask: async () => {
+        throw new Error("control unavailable: agents not registered");
+      },
+      canBet: false,
+      placeBet: async () => {
+        throw new Error("betting unavailable: agents not registered");
+      },
+    };
+  }
+
+  const key = (process.env.CLIENT_KEY ?? DEFAULT_CLIENT_KEY) as Hex;
+  const account = privateKeyToAccount(key);
   const walletClient = createWalletClient({ account, chain, transport });
 
-  let approved = false;
-  async function approveOnce(): Promise<void> {
-    if (approved) return;
+  // ---- human manual-trading wallet (anvil index 0 by default) ----
+  const human = dep.agents.human;
+  const humanKey = (process.env.HUMAN_KEY ?? DEFAULT_HUMAN_KEY) as Hex;
+  const humanAccount = privateKeyToAccount(humanKey);
+  const humanWallet = createWalletClient({ account: humanAccount, chain, transport });
+
+  /** Approve OracleCore to pull USDC from a wallet, once, if under threshold. */
+  async function approveUsdc(
+    wallet: ReturnType<typeof createWalletClient>,
+    owner: `0x${string}`,
+  ): Promise<void> {
     const allowance = await publicClient.readContract({
       address: dep.contracts.usdc,
       abi: USDC_ABI,
       functionName: "allowance",
-      args: [account.address, dep.contracts.oracleCore],
+      args: [owner, dep.contracts.oracleCore],
     });
     if (allowance < BigInt(dep.params.minReward)) {
-      const hash = await walletClient.writeContract({
+      const hash = await wallet.writeContract({
         address: dep.contracts.usdc,
         abi: USDC_ABI,
         functionName: "approve",
         args: [dep.contracts.oracleCore, maxUint256],
+        account: wallet.account!,
+        chain,
       });
       await publicClient.waitForTransactionReceipt({ hash });
     }
-    approved = true;
   }
+
+  let clientApproved = false;
+  async function approveOnce(): Promise<void> {
+    if (clientApproved) return;
+    await approveUsdc(walletClient, account.address);
+    clientApproved = true;
+  }
+  let humanApproved = false;
 
   return {
     available: true,
     templates,
+    canBet: !!human,
+    humanAgentId: human?.agentId,
+    humanAddress: human?.address,
+    async placeBet(taskId: number, side: 0 | 1, amountUnits: string) {
+      if (!human) throw new Error("human agent not registered — run register-agents");
+      const amount = BigInt(amountUnits);
+      if (amount < BigInt(dep.params.minBet)) {
+        throw new Error(`below minimum bet (${dep.params.minBet} units)`);
+      }
+      if (!humanApproved) {
+        await approveUsdc(humanWallet, humanAccount.address);
+        humanApproved = true;
+      }
+      const { request } = await publicClient.simulateContract({
+        account: humanAccount,
+        address: dep.contracts.oracleCore,
+        abi: ORACLE_CORE_ABI,
+        functionName: "placeBet",
+        args: [BigInt(taskId), BigInt(human.agentId), side, amount],
+      });
+      const txHash = await humanWallet.writeContract(request);
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      return { txHash };
+    },
     async createTask(template: string) {
       const info = templates().find((t) => t.template === template || t.file === template);
       if (!info) throw new Error(`unknown template "${template}"`);

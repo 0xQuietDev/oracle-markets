@@ -53,6 +53,12 @@ const FLEET: { role: Exclude<Role, "client">; file: string; name: string; descri
     name: "ORACLE Vendor",
     description: "Input vendor agent. Sells task inputs to the worker over x402 ($0.01 per call).",
   },
+  {
+    role: "human",
+    file: "human",
+    name: "You (manual trader)",
+    description: "The human spectator's trading identity. Places manual YES/NO bets from the ORACLE web app to trade alongside the autonomous agents.",
+  },
 ];
 
 function deploymentPath(): string {
