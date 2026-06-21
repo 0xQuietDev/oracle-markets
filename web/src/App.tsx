@@ -1,40 +1,43 @@
+// App shell + client-side view routing (no react-router; a `view` state plus a
+// selected market id). Persistent TopNav over one of: Markets grid, a Market
+// detail (the heart), Activity feed, or How it works. The data layer (reducer +
+// ws/mock feed) is unchanged; views read from the same store state.
+
 import { Toast } from "@heroui/react";
 import { useEffect, useMemo, useReducer, useState } from "react";
+import { ActivityView } from "./components/ActivityView.js";
 import { AgentDrawer } from "./components/AgentDrawer.js";
-import { AgentFeed } from "./components/AgentFeed.js";
-import { DirectorBar } from "./components/DirectorBar.js";
-import { FlowCanvas } from "./components/FlowCanvas.js";
-import { MarketBoard } from "./components/MarketBoard.js";
-import { NewTaskControl } from "./components/NewTaskControl.js";
-import { ReplayControl } from "./components/ReplayControl.js";
-import { SettleBanner } from "./components/SettleBanner.js";
+import { HowItWorks } from "./components/HowItWorks.js";
+import { MarketDetail } from "./components/MarketDetail.js";
+import { MarketsView } from "./components/MarketsView.js";
+import { TopNav, type View } from "./components/TopNav.js";
 import { TxDrawer } from "./components/TxDrawer.js";
-import { TxRail } from "./components/TxRail.js";
 import { WorkerCodeModal } from "./components/WorkerCodeModal.js";
-import { specName } from "./format.js";
 import { startMockFeed } from "./mockFeed.js";
 import { initialState, reducer } from "./store.js";
-import type { ActivityItem, TaskState } from "./types.js";
+import type { ActivityItem } from "./types.js";
+import { useControl } from "./useControl.js";
 import { connectWs, DEFAULT_WS_URL, wsUrlFor } from "./ws.js";
 
 const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
 const IS_MOCK = params?.get("mock") === "1";
 
-function displayState(state: TaskState, betCutoff: number | null, now: number): TaskState {
-  if (state === "Open" && betCutoff != null && now > betCutoff) return "Executing";
-  return state;
-}
-
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const replayId = params?.get("replay") ?? null;
+
+  // routing state
+  const [view, setView] = useState<View>("markets");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [replayId, setReplayId] = useState<string | null>(params?.get("replay") ?? null);
 
   // drawers / modals
   const [txHash, setTxHash] = useState<string | null>(null);
   const [agentNode, setAgentNode] = useState<{ role: string; label: string } | null>(null);
   const [codeItem, setCodeItem] = useState<ActivityItem | null>(null);
+
+  const control = useControl(IS_MOCK);
+  const humanAddress = control.status === "ok" ? control.info.humanAddress : undefined;
 
   // 1s tick drives countdowns and the Open→Executing flip
   useEffect(() => {
@@ -48,22 +51,15 @@ export default function App() {
     return connectWs(wsUrlFor(DEFAULT_WS_URL, replayId), dispatch);
   }, [replayId]);
 
-  // default selection: newest task; keep it stable once chosen
+  // if the selected market disappears, fall back to Markets
   useEffect(() => {
-    if (selectedId == null && state.order.length > 0) setSelectedId(state.order[0]);
-    else if (selectedId != null && !state.tasks[selectedId] && state.order.length > 0)
-      setSelectedId(state.order[0]);
-  }, [state.order, selectedId, state.tasks]);
+    if (selectedId != null && !state.tasks[selectedId]) {
+      setSelectedId(null);
+      setView("markets");
+    }
+  }, [state.tasks, selectedId]);
 
   const selected = selectedId != null ? state.tasks[selectedId] ?? null : null;
-  const phase: TaskState | undefined = selected
-    ? displayState(selected.task.state, selected.task.betCutoff, now)
-    : undefined;
-
-  const taskLabel = (id: number) => {
-    const t = state.tasks[id]?.task;
-    return t ? `#${id} ${specName(t.specUri)}` : `#${id}`;
-  };
 
   const verdictFor = useMemo(() => {
     if (!codeItem) return null;
@@ -74,84 +70,47 @@ export default function App() {
     );
   }, [codeItem, state.activity]);
 
-  const setReplayUrl = (runId: string | null) => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (runId) url.searchParams.set("replay", runId);
-    else url.searchParams.delete("replay");
-    window.history.replaceState(null, "", url.toString());
+  const openMarket = (id: number) => {
+    setSelectedId(id);
+    setView("markets");
   };
 
-  const onReplay = (runId: string) => {
-    setReplayId(runId);
-    setReplayUrl(runId);
-  };
-  const onLive = () => {
-    setReplayId(null);
-    setReplayUrl(null);
+  const onView = (v: View) => {
+    if (v !== "markets") setSelectedId(null);
+    setView(v);
   };
 
   return (
     <div className="flex h-full flex-col text-foreground">
       <Toast.Provider />
-      <DirectorBar director={state.director} connected={state.connected} isMock={!!IS_MOCK} />
+      <TopNav
+        view={view}
+        onView={onView}
+        director={state.director}
+        connected={state.connected}
+        isMock={!!IS_MOCK}
+        humanAddress={humanAddress}
+      />
 
-      <main className="mx-auto grid min-h-0 w-full max-w-[1480px] flex-1 grid-cols-1 gap-5 overflow-auto px-5 py-6 xl:grid-cols-[minmax(0,1fr)_400px]">
-        {/* left / center column */}
-        <div className="flex min-w-0 flex-col gap-5">
-          {!IS_MOCK && (
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <NewTaskControl />
-              <section className="glass flex flex-col gap-3 rounded-2xl p-5">
-                <div className="flex flex-col gap-1">
-                  <h2 className="font-display flex items-center gap-2 text-base font-semibold text-foreground">
-                    <span aria-hidden>🎬</span> Run mode
-                  </h2>
-                  <p className="text-sm text-muted">
-                    Switch to a recorded run, or stay on the live on-chain feed.
-                  </p>
-                </div>
-                <ReplayControl
-                  replaying={state.director.mode === "replay"}
-                  onReplay={onReplay}
-                  onLive={onLive}
-                />
-              </section>
-            </div>
-          )}
-
-          {selected?.justSettled &&
-            selected.task.outcome &&
-            selected.task.outcome !== "Unresolved" && (
-              <SettleBanner
-                outcome={selected.task.outcome}
-                validatorScore={selected.task.validatorScore}
-                viaRule={selected.task.viaRule}
-              />
-            )}
-
-          <MarketBoard
+      <main className="min-h-0 flex-1 overflow-auto">
+        {view === "markets" && selected ? (
+          <MarketDetail
             entry={selected}
+            state={state}
             now={now}
-            order={state.order}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            taskLabel={taskLabel}
-          />
-
-          <TxRail txs={state.txs} onOpenTx={setTxHash} />
-
-          <FlowCanvas
-            phase={phase}
-            lastPulse={state.lastPulse}
+            control={control}
+            onBack={() => setSelectedId(null)}
+            onOpenTx={setTxHash}
             onOpenAgent={(role, label) => setAgentNode({ role, label })}
+            onOpenCode={setCodeItem}
           />
-        </div>
-
-        {/* right rail */}
-        <div className="min-h-0 xl:sticky xl:top-6 xl:h-[calc(100vh-7rem)]">
-          <AgentFeed items={state.activity} onOpenCode={setCodeItem} />
-        </div>
+        ) : view === "markets" ? (
+          <MarketsView state={state} now={now} control={control} onOpen={openMarket} />
+        ) : view === "activity" ? (
+          <ActivityView state={state} onOpenCode={setCodeItem} onOpenMarket={openMarket} />
+        ) : (
+          <HowItWorks />
+        )}
       </main>
 
       {txHash && <TxDrawer txHash={txHash} onClose={() => setTxHash(null)} />}

@@ -1,4 +1,4 @@
-/* Fonts first (deliberate pairing: Space Grotesk display / Inter body / JetBrains Mono data) */
+/* Fonts (Space Grotesk display / Inter body / JetBrains Mono data) */
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
 
 /* Tailwind CSS v4 */
@@ -11,39 +11,34 @@
 @import "@xyflow/react/dist/style.css";
 
 /* ============================================================================
-   ORACLE — "Control Room" theme.
-   Subject: a live prediction market on AI-agent task completion.
-   Aesthetic risk (spent in ONE place): a violet→indigo→blue brand gradient
-   (tars.pro lineage) lighting the live price + flow, over a faint grid + bloom.
-   Everything else: quiet glassmorphic panels on a deep indigo-black field.
+   ORACLE — dark trading terminal.
+   A prediction market on AI-agent task completion. Near-black, data-dense,
+   disciplined: dark glass surfaces, hairline borders, ONE indigo accent used
+   sparingly, and saturated color reserved for YES (green) / NO (red) / status.
+   Think Polymarket × Linear × a Bloomberg terminal. No bloom, no noise.
    ============================================================================ */
 
 :root,
 [data-theme="dark"] {
-  /* deep field */
-  --bg-deep: oklch(0.16 0.025 280);
-  --bg-deep-2: oklch(0.13 0.02 282);
+  /* near-black field */
+  --bg-deep: oklch(0.165 0.008 265);
+  --bg-deep-2: oklch(0.145 0.008 265);
 
-  /* brand gradient stops (violet → indigo → blue) */
-  --g1: oklch(0.66 0.23 300); /* violet */
-  --g2: oklch(0.6 0.21 280); /* indigo */
-  --g3: oklch(0.68 0.16 248); /* blue */
-  --brand: var(--g2);
-  --brand-soft: color-mix(in oklab, var(--g2) 22%, transparent);
-
-  /* HeroUI accent → our brand */
-  --accent: var(--g2);
+  /* one restrained brand accent (indigo) */
+  --accent: oklch(0.62 0.17 268);
   --accent-foreground: oklch(0.99 0 0);
+  --accent-soft: color-mix(in oklab, var(--accent) 18%, transparent);
 
-  /* market semantics */
-  --yes: oklch(0.8 0.18 158); /* mint green */
-  --no: oklch(0.67 0.22 18); /* rose red */
+  /* market semantics (the only saturated colors that carry meaning) */
+  --yes: oklch(0.74 0.16 158); /* green */
+  --no: oklch(0.66 0.2 22); /* red */
 
-  /* glass + lines */
-  --glass-bg: oklch(0.99 0 0 / 0.035);
-  --glass-bg-2: oklch(0.99 0 0 / 0.06);
-  --glass-border: oklch(0.99 0 0 / 0.09);
-  --grid-line: oklch(0.99 0 0 / 0.025);
+  /* glass surfaces + hairlines */
+  --glass-bg: oklch(0.99 0 0 / 0.025);
+  --glass-bg-2: oklch(0.99 0 0 / 0.05);
+  --glass-border: oklch(0.99 0 0 / 0.08);
+  --hairline: oklch(0.99 0 0 / 0.07);
+  --grid-line: oklch(0.99 0 0 / 0.014);
 
   /* type roles */
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
@@ -63,16 +58,12 @@ body {
   font-family: var(--font-body);
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
-  /* layered field: radial violet bloom (top) + deep gradient + fixed grid */
   background-color: var(--bg-deep);
-  background-image:
-    radial-gradient(1200px 620px at 50% -8%, color-mix(in oklab, var(--g1) 26%, transparent), transparent 70%),
-    radial-gradient(900px 600px at 88% 8%, color-mix(in oklab, var(--g3) 16%, transparent), transparent 65%),
-    linear-gradient(180deg, var(--bg-deep), var(--bg-deep-2));
+  background-image: linear-gradient(180deg, var(--bg-deep), var(--bg-deep-2));
   background-attachment: fixed;
 }
 
-/* faint engineering grid overlay (the tars "mesh") — fixed, non-interactive */
+/* whisper-faint engineering grid — barely there, fixed, non-interactive */
 body::before {
   content: "";
   position: fixed;
@@ -82,19 +73,7 @@ body::before {
   background-image:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(120% 90% at 50% 0%, black, transparent 80%);
-}
-
-/* very low-opacity film-grain noise for tactile depth */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 52px 52px;
 }
 
 #root {
@@ -112,42 +91,37 @@ body::after {
 }
 .font-mono { font-family: var(--font-mono); }
 
-/* glassmorphic panel: subtle fill, blur, hairline border, top inner highlight */
+/* dark glass panel: subtle fill, hairline border, no glow */
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow:
-    0 1px 0 0 oklch(1 0 0 / 0.06) inset,
-    0 24px 60px -28px oklch(0 0 0 / 0.7);
 }
 .glass-2 { background: var(--glass-bg-2); }
 
-/* brand gradient text (the signature) */
-.grad-text {
-  background-image: linear-gradient(105deg, var(--g1), var(--g2) 45%, var(--g3));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* hairline divider helper */
+.hairline { border-color: var(--hairline); }
+
+/* a calm card that lifts a touch on hover — for the market grid */
+.card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
 }
-/* gradient hairline / rim for the hero panel */
-.grad-rim {
-  position: relative;
+.card:hover {
+  background: var(--glass-bg-2);
+  border-color: oklch(0.99 0 0 / 0.16);
 }
-.grad-rim::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(120deg, color-mix(in oklab, var(--g1) 60%, transparent), transparent 40%, color-mix(in oklab, var(--g3) 55%, transparent));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
-.brand-glow { box-shadow: 0 0 40px -8px var(--brand-soft); }
+
+/* accent text (links / active nav) — used sparingly */
+.accent-text { color: var(--accent); }
 
 /* React Flow surface transparent so the field shows through */
 .react-flow__renderer,
@@ -155,7 +129,7 @@ body::after {
 .react-flow__attribution { display: none; }
 
 /* flow pulse dot + label */
-.oracle-pulse-dot { filter: drop-shadow(0 0 6px currentColor); }
+.oracle-pulse-dot { filter: drop-shadow(0 0 5px currentColor); }
 .oracle-pulse-label {
   position: absolute;
   pointer-events: none;
@@ -167,38 +141,41 @@ body::after {
   padding: 2px 8px;
   border-radius: 9999px;
   border: 1px solid var(--glass-border);
-  background: oklch(0.18 0.03 280 / 0.92);
+  background: oklch(0.18 0.008 265 / 0.95);
   backdrop-filter: blur(4px);
 }
 
-/* lit flow node glow (brand) */
+/* lit flow node — restrained accent ring (no pulsing glow) */
 @keyframes oracle-node-glow {
-  0%, 100% { box-shadow: 0 0 0 1px var(--brand), 0 0 14px -2px var(--brand); }
-  50% { box-shadow: 0 0 0 1px var(--brand), 0 0 26px 1px var(--brand); }
+  0%, 100% { box-shadow: 0 0 0 1px var(--accent); }
+  50% { box-shadow: 0 0 0 1px var(--accent), 0 0 10px -2px var(--accent); }
 }
-.oracle-node-lit { animation: oracle-node-glow 2s ease-in-out infinite; }
-
-/* hero gradient shimmer (signature only) */
-@keyframes oracle-shimmer {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.grad-shimmer {
-  background-size: 200% 100%;
-  animation: oracle-shimmer 6s linear infinite;
-}
+.oracle-node-lit { animation: oracle-node-glow 2.4s ease-in-out infinite; }
 
 /* settle flash */
 @keyframes oracle-settle-in {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
 }
-.oracle-settle-flash { animation: oracle-settle-in 0.35s ease-out; }
+.oracle-settle-flash { animation: oracle-settle-in 0.3s ease-out; }
+
+/* subtle live blink for the LIVE dot */
+@keyframes oracle-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot { animation: oracle-blink 1.8s ease-in-out infinite; }
 
 .recharts-wrapper:focus,
 .recharts-surface:focus { outline: none; }
 
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .oracle-node-lit,
-  .grad-shimmer { animation: none; }
+  .live-dot { animation: none; }
+  .card { transition: none; }
 }
