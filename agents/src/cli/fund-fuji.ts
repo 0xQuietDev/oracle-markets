@@ -16,9 +16,10 @@ import { USDC_ABI, loadDeployment } from "@oracle/shared";
 
 const RPC = process.env.FUJI_RPC ?? "https://api.avax-test.network/ext/bc/C/rpc";
 
-// gas top-up per wallet, and USDC mint per spender. Kept lean so a single small
-// faucet drip to the deployer stretches across the whole fleet (Fuji gas is cheap).
-const GAS_AVAX = process.env.FUND_GAS_AVAX ?? "0.03";
+// gas top-up per wallet, and USDC mint per spender. Fuji gas is ~2 gwei, so a
+// full multi-task run costs ~0.02 AVAX total — these tiny top-ups let one small
+// zero-prerequisite faucet drip cover the entire fleet.
+const GAS_AVAX = process.env.FUND_GAS_AVAX ?? "0.004";
 const USDC_EACH = BigInt(process.env.FUND_USDC_EACH ?? "200") * 1_000_000n; // 200 USDC (our mint — free)
 
 // role -> env key name
@@ -36,8 +37,9 @@ const KEYS: Record<string, string> = {
   relayer: "FUJI_RELAYER_KEY",
 };
 
-// who needs gas (signs txs) and who needs USDC (spends)
-const NEEDS_GAS = ["client", "worker", "validator", "bettorRep", "bettorSkeptic", "bettorMirror", "vendor", "human", "relayer"];
+// who needs gas (signs on-chain txs) and who needs USDC (spends).
+// vendor sends no chain txs (HTTP-only x402 seller), so it needs no gas.
+const NEEDS_GAS = ["client", "worker", "validator", "bettorRep", "bettorSkeptic", "bettorMirror", "human", "relayer"];
 const NEEDS_USDC = ["client", "worker", "bettorRep", "bettorSkeptic", "bettorMirror", "human"];
 
 function addrOf(role: string): { key: Hex; address: Hex } {
