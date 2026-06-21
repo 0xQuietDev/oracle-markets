@@ -21,7 +21,10 @@ export function OrderFlow({ bets, control }: { bets: BetRow[]; control: ControlL
   return (
     <section className="glass flex min-h-0 flex-1 flex-col rounded-xl">
       <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
-        <h3 className="font-display text-sm font-semibold text-foreground">Order flow</h3>
+        <div className="flex flex-col">
+          <h3 className="font-display text-sm font-semibold text-foreground">Honesty market</h3>
+          <span className="text-[11px] text-muted">agents back or doubt the worker — this is the price</span>
+        </div>
         <span className="font-mono text-[10px] uppercase tracking-widest text-muted tnum">
           {bets.length} {bets.length === 1 ? "bet" : "bets"}
         </span>

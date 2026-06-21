@@ -57,8 +57,12 @@ async function main() {
     inFlight.add(key);
     try {
       const t = await getTask(c, taskId);
-      if (t.workerAgentId !== myAgentId) return;
       if (stateName(t.state) !== "Created") return; // already accepted / stale event
+      // Autonomous job board: take a task if it's pre-assigned to me OR it's an
+      // OPEN job (workerAgentId == 0) that I choose to claim. Anything assigned
+      // to a different worker is not mine.
+      const isOpen = t.workerAgentId === 0n;
+      if (!isOpen && t.workerAgentId !== myAgentId) return;
 
       // 1. fetch spec (free — it markets the paid endpoints)
       const specRes = await fetch(t.specURI);
@@ -102,13 +106,41 @@ async function main() {
         agent: WORKER_AGENT,
         role: "worker",
         kind: "confidence",
-        text: confReasoning,
+        text: `${isOpen ? "Considering open job — " : ""}${confReasoning}`,
         confidence: conf,
         source: confSource,
       });
+
+      // Honest job selection: decline a job I'd almost certainly fail rather than
+      // burn a self-stake on it. (Floor matches the min self-stake ratio.)
+      const FLOOR = 0.1;
+      if (conf < FLOOR) {
+        console.log(`[worker] task ${taskId}: declining (confidence ${conf.toFixed(2)} < ${FLOOR})`);
+        reportActivity({
+          taskId: Number(taskId),
+          agent: WORKER_AGENT,
+          role: "worker",
+          kind: "info",
+          text: `Passed on this job — confidence ${(conf * 100).toFixed(0)}% is too low to stake on.`,
+          source: confSource,
+        });
+        inFlight.delete(key);
+        return;
+      }
+
       const stake = stakeFor(t.reward, conf);
-      console.log(`[worker] task ${taskId}: template=${template} conf=${conf} stake=${stake} units`);
-      await writeOracle(c, "acceptAndStake", [taskId, myAgentId, stake]);
+      console.log(`[worker] task ${taskId}: ${isOpen ? "claiming open job " : ""}template=${template} conf=${conf} stake=${stake} units`);
+      try {
+        await writeOracle(c, "acceptAndStake", [taskId, myAgentId, stake]);
+      } catch (err) {
+        // On an open job another worker may have claimed it first (WrongState).
+        const msg = (err as Error).message;
+        if (isOpen && /WrongState|reverted/.test(msg)) {
+          console.log(`[worker] task ${taskId}: open job already claimed by another worker — skipping`);
+          return;
+        }
+        throw err;
+      }
       reportActivity({
         taskId: Number(taskId),
         agent: WORKER_AGENT,
@@ -236,14 +268,17 @@ async function main() {
     }
   }
 
+  // Consider every TaskCreated — handleTask() decides whether to take it
+  // (mine if pre-assigned, or an OPEN job I choose to claim).
+  const mineOrOpen = (workerAgentId: bigint) => workerAgentId === myAgentId || workerAgentId === 0n;
+
   // catch-up for tasks created before boot, then live watch
   for (const log of await getOracleEvents(c, "TaskCreated")) {
-    const id = log.args.taskId as bigint;
-    if ((log.args.workerAgentId as bigint) === myAgentId) void handleTask(id);
+    if (mineOrOpen(log.args.workerAgentId as bigint)) void handleTask(log.args.taskId as bigint);
   }
   watchOracleEvent(c, "TaskCreated", (logs) => {
     for (const log of logs) {
-      if ((log.args.workerAgentId as bigint) === myAgentId) void handleTask(log.args.taskId as bigint);
+      if (mineOrOpen(log.args.workerAgentId as bigint)) void handleTask(log.args.taskId as bigint);
     }
   });
   watchOracleEvent(c, "OutcomeResolved", (logs) => {

@@ -154,12 +154,27 @@ export class OracleDb {
       .run(t.taskId, t.client, t.workerAgentId, t.validatorAgentId, t.reward, t.createdAt, t.deadline, t.specUri);
   }
 
-  markAccepted(taskId: number, a: { workerWallet: string; selfStake: string; acceptedAt: number; betCutoff: number }): void {
+  markAccepted(
+    taskId: number,
+    a: { workerWallet: string; workerAgentId?: number; selfStake: string; acceptedAt: number; betCutoff: number },
+  ): void {
+    // On an OPEN job the worker is unknown until acceptance — record it now.
     this.db
       .prepare(
-        `UPDATE tasks SET state='Open', worker_wallet=?, self_stake=?, accepted_at=?, bet_cutoff=?, yes_pool=?, no_pool='0' WHERE task_id=?`,
+        `UPDATE tasks SET state='Open', worker_wallet=?, self_stake=?, accepted_at=?, bet_cutoff=?, yes_pool=?, no_pool='0',
+           worker_agent_id = CASE WHEN ? > 0 THEN ? ELSE worker_agent_id END
+         WHERE task_id=?`,
       )
-      .run(a.workerWallet, a.selfStake, a.acceptedAt, a.betCutoff, a.selfStake, taskId);
+      .run(
+        a.workerWallet,
+        a.selfStake,
+        a.acceptedAt,
+        a.betCutoff,
+        a.selfStake,
+        a.workerAgentId ?? 0,
+        a.workerAgentId ?? 0,
+        taskId,
+      );
   }
 
   setState(taskId: number, state: string): void {

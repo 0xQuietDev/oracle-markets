@@ -168,12 +168,15 @@ export function makeControl(dep: Deployment, specsDir: string, baseUrl: string):
       const nowChain = (await publicClient.getBlock()).timestamp;
       const deadline = nowChain + BigInt(dep.params.bettingWindow + 600);
 
+      // Post an OPEN job (workerAgentId = 0): worker agents browse and one
+      // autonomously claims it. (Pass OPEN_WORKER=<id> to pre-assign instead.)
+      const openWorker = process.env.OPEN_WORKER ? BigInt(process.env.OPEN_WORKER) : 0n;
       const { result: taskId, request } = await publicClient.simulateContract({
         account,
         address: dep.contracts.oracleCore,
         abi: ORACLE_CORE_ABI,
         functionName: "createTask",
-        args: [BigInt(worker.agentId), BigInt(validator.agentId), reward, deadline, specHash, specURI],
+        args: [openWorker, BigInt(validator.agentId), reward, deadline, specHash, specURI],
       });
       const txHash = await walletClient.writeContract(request);
       await publicClient.waitForTransactionReceipt({ hash: txHash });

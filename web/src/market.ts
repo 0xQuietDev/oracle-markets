@@ -71,8 +71,8 @@ export interface PhaseMeta {
 
 export function phaseMeta(state: TaskState): PhaseMeta {
   const map: Record<string, PhaseMeta> = {
-    Created: { label: "created", color: "oklch(0.66 0.02 260)" },
-    Open: { label: "betting", color: "var(--accent)" },
+    Created: { label: "awaiting worker", color: "oklch(0.8 0.15 85)" },
+    Open: { label: "betting open", color: "var(--accent)" },
     Executing: { label: "executing", color: "oklch(0.8 0.15 85)" },
     Delivered: { label: "delivered", color: "oklch(0.7 0.13 230)" },
     Settled: { label: "settled", color: "var(--yes)" },

@@ -144,6 +144,7 @@ export async function startIndexer(opts: IndexerOptions): Promise<Indexer> {
         const taskId = Number(a.taskId);
         db.markAccepted(taskId, {
           workerWallet: a.workerWallet,
+          workerAgentId: Number(a.workerAgentId),
           selfStake: a.selfStake.toString(),
           acceptedAt: ts,
           betCutoff: Number(a.betCutoff),
