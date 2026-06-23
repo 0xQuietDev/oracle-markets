@@ -101,7 +101,6 @@ export default function App() {
             entry={selected}
             state={state}
             now={now}
-            control={control}
             onBack={() => setSelectedId(null)}
             onOpenTx={setTxHash}
             onOpenAgent={(role, label) => setAgentNode({ role, label })}

@@ -16,7 +16,6 @@ import {
   prices,
   volumeUnits,
 } from "../market.js";
-import type { ControlLoad } from "../useControl.js";
 import type { ActivityItem, StoreState, TaskEntry } from "../types.js";
 import { AgentFeed } from "./AgentFeed.js";
 import { FlowCanvas } from "./FlowCanvas.js";
@@ -30,7 +29,6 @@ export function MarketDetail({
   entry,
   state,
   now,
-  control,
   onBack,
   onOpenTx,
   onOpenAgent,
@@ -39,7 +37,6 @@ export function MarketDetail({
   entry: TaskEntry;
   state: StoreState;
   now: number;
-  control: ControlLoad;
   onBack: () => void;
   onOpenTx: (hash: string) => void;
   onOpenAgent: (role: string, label: string) => void;
@@ -220,7 +217,7 @@ export function MarketDetail({
 
       {/* RIGHT rail — the agent "honesty market" (no human betting) */}
       <div className="flex min-h-0 flex-col gap-4 xl:sticky xl:top-[4.5rem] xl:h-[calc(100vh-6rem)]">
-        <OrderFlow bets={entry.bets} control={control} />
+        <OrderFlow bets={entry.bets} />
         <TxRail txs={taskTxs} onOpenTx={onOpenTx} />
       </div>
     </div>

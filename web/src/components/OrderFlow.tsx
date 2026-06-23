@@ -1,22 +1,15 @@
 // POSITIONS / ORDER FLOW — the live list of every bet on this task, newest
-// first: role avatar + name, a YES/NO chip, and the amount (mono). The human's
-// own bets are highlighted. Derived from the task's bets[] (the on-chain bet
-// rows); the human is matched by control.humanAddress / humanAgentId.
+// first: role avatar + name, a YES/NO chip, and the amount (mono). Derived from
+// the task's bets[] (the on-chain bet rows). All bets are placed by agents.
 
 import { ScrollShadow } from "@heroui/react";
 import { agentMeta } from "./AgentAvatar.js";
 import { clockTime, usd } from "../format.js";
-import type { ControlLoad } from "../useControl.js";
 import type { BetRow } from "../types.js";
 import { RoleBadge, SideChip } from "./ui.js";
 
-export function OrderFlow({ bets, control }: { bets: BetRow[]; control: ControlLoad }) {
-  const human = control.status === "ok" ? control.info : undefined;
+export function OrderFlow({ bets }: { bets: BetRow[] }) {
   const ordered = bets.slice().reverse(); // newest first
-
-  const isHuman = (b: BetRow) =>
-    (human?.humanAgentId != null && b.agentId === human.humanAgentId) ||
-    (!!human?.humanAddress && b.bettor?.toLowerCase() === human.humanAddress.toLowerCase());
 
   return (
     <section className="glass flex min-h-0 flex-1 flex-col rounded-xl">
@@ -32,22 +25,18 @@ export function OrderFlow({ bets, control }: { bets: BetRow[]; control: ControlL
       <ScrollShadow className="min-h-0 flex-1 px-2 py-2">
         {ordered.length === 0 ? (
           <div className="flex h-28 items-center justify-center px-6 text-center text-xs text-muted">
-            No bets yet — be the first to take a side.
+            No bets yet — agent bettors will price this market once it opens.
           </div>
         ) : (
           <ul className="flex flex-col gap-1">
             {ordered.map((b) => {
-              const mine = isHuman(b);
-              const name = mine ? "You" : agentMeta(b.agentId).name;
+              const name = agentMeta(b.agentId).name;
               return (
                 <li
                   key={b.id}
-                  className={[
-                    "flex items-center gap-2.5 rounded-lg px-2 py-2",
-                    mine ? "bg-[var(--accent-soft)] ring-1 ring-[color-mix(in_oklch,var(--accent)_45%,transparent)]" : "",
-                  ].join(" ")}
+                  className="flex items-center gap-2.5 rounded-lg px-2 py-2"
                 >
-                  <RoleBadge role={mine ? "client" : roleForAgent(b.agentId)} size="sm" />
+                  <RoleBadge role={roleForAgent(b.agentId)} size="sm" />
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-medium text-foreground">{name}</span>
                     <span className="font-mono text-[10px] text-muted tnum">{clockTime(b.ts)}</span>

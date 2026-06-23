@@ -1,7 +1,8 @@
-// Shared GET /v1/control fetch — capabilities for the create-task control and
-// the trade ticket: whether the control plane is up, whether the human can bet,
-// the minimum bet (USDC units), the human's address, and the task templates.
-// One small hook so MarketsView (create) and TradeTicket (bet) agree on state.
+// Shared GET /v1/control fetch — capabilities for the create-task control:
+// whether the control plane is up and the available task templates. The server
+// also returns betting fields (canBet/humanAgentId/humanAddress/minBet) for the
+// retained on-chain human-bet path; they are kept on the type but no UI consumes
+// them since human betting was removed from the UI.
 
 import { useEffect, useState } from "react";
 import { REST_BASE } from "./ws.js";
