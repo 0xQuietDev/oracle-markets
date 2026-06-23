@@ -266,7 +266,7 @@ export function createApp(opts: ApiOptions): Express {
     }
     const block = Number(db.getMeta("lastBlock") ?? 0);
     const status = cs
-      ? directorStatus(cs, block)
+      ? directorStatus(cs, block, dep.chainId)
       : ({ mode: (body.mode as DirectorStatus["mode"]) ?? "live", block } as DirectorStatus);
     broadcast({ type: "director", status });
     res.json({ ok: true, status });

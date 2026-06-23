@@ -59,6 +59,8 @@ export type DirectorStatus = {
   block?: number;
   serverOk?: boolean;
   geminiOk?: boolean | "limited";
+  network?: string; // human label for the chain, e.g. "Fuji" / "anvil"
+  chainId?: number;
 };
 
 /** Decoded receipt returned by GET /v1/tx/:hash (the bundled mini-explorer). */

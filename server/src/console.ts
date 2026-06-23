@@ -54,14 +54,24 @@ export function createConsoleState(runId: string): ConsoleState {
   };
 }
 
-/** Director status surfaced over WS — merges live state with the anvil block. */
-export function directorStatus(state: ConsoleState, block?: number): DirectorStatus {
+/** Map a chainId to a short human network label. */
+export function networkName(chainId: number): string {
+  if (chainId === 43113) return "Fuji";
+  if (chainId === 43114) return "Avalanche";
+  if (chainId === 31337) return "anvil";
+  return `chain ${chainId}`;
+}
+
+/** Director status surfaced over WS — merges live state with chain block + network. */
+export function directorStatus(state: ConsoleState, block?: number, chainId?: number): DirectorStatus {
   return {
     mode: state.director.mode,
     runId: state.director.runId,
     block,
     serverOk: true,
     geminiOk: state.director.geminiOk,
+    chainId,
+    network: chainId != null ? networkName(chainId) : undefined,
   };
 }
 

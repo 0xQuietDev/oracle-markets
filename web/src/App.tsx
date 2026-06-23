@@ -8,6 +8,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { ActivityView } from "./components/ActivityView.js";
 import { AgentDrawer } from "./components/AgentDrawer.js";
 import { HowItWorks } from "./components/HowItWorks.js";
+import { Landing } from "./components/Landing.js";
 import { MarketDetail } from "./components/MarketDetail.js";
 import { MarketsView } from "./components/MarketsView.js";
 import { TopNav, type View } from "./components/TopNav.js";
@@ -27,8 +28,8 @@ export default function App() {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const replayId = params?.get("replay") ?? null;
 
-  // routing state
-  const [view, setView] = useState<View>("markets");
+  // routing state — landing is the default front door
+  const [view, setView] = useState<View>("landing");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // drawers / modals
@@ -93,7 +94,9 @@ export default function App() {
       />
 
       <main className="min-h-0 flex-1 overflow-auto">
-        {view === "markets" && selected ? (
+        {view === "landing" ? (
+          <Landing onLaunch={() => onView("markets")} />
+        ) : view === "markets" && selected ? (
           <MarketDetail
             entry={selected}
             state={state}

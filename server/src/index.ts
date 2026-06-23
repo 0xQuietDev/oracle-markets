@@ -81,7 +81,7 @@ async function main(): Promise<void> {
     activity: () => cs.activity.list(),
     payments: () => cs.payments.list(),
     txs: () => cs.txs.list(),
-    director: () => directorStatus(cs, blockNow()),
+    director: () => directorStatus(cs, blockNow(), dep.chainId),
   });
   broadcaster.current = (msg: WsMessage) => {
     record(msg);

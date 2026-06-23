@@ -4,10 +4,14 @@
 // ▶ REPLAY / ◐ DEMO, plus a server-down indicator. View switching is pure
 // client-side state in App (no router).
 
+import { Button } from "@heroui/react";
 import { shortHash } from "../format.js";
 import type { DirectorStatus } from "../types.js";
 
-export type View = "markets" | "activity" | "how";
+export type View = "landing" | "markets" | "activity" | "how";
+
+const FUJI_ADDR =
+  "https://testnet.snowtrace.io/address/0xa8Cc58b1E28ee7b5B8fc870402DC1515f4fe7BAD";
 
 const NAV: { id: View; label: string }[] = [
   { id: "markets", label: "Markets" },
@@ -32,13 +36,42 @@ export function TopNav({
 }) {
   const replaying = director.mode === "replay";
 
+  // Minimal landing chrome: wordmark + "Launch app" primary + "View on Fuji".
+  if (view === "landing") {
+    return (
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-[var(--hairline)] bg-[oklch(0.155_0.008_265/0.82)] px-5 backdrop-blur-xl">
+        <button
+          type="button"
+          onClick={() => onView("landing")}
+          className="font-display text-base font-bold tracking-[0.22em] text-foreground"
+        >
+          ORACLE
+        </button>
+        <div className="ml-auto flex items-center gap-3">
+          <a
+            href={FUJI_ADDR}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-muted transition-colors hover:text-foreground"
+          >
+            View on Fuji ↗
+          </a>
+          <Button size="sm" onPress={() => onView("markets")}>
+            Launch app
+          </Button>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-6 border-b border-[var(--hairline)] bg-[oklch(0.155_0.008_265/0.82)] px-5 backdrop-blur-xl">
       {/* wordmark */}
       <button
         type="button"
-        onClick={() => onView("markets")}
+        onClick={() => onView("landing")}
         className="font-display text-base font-bold tracking-[0.22em] text-foreground"
+        title="Back to landing"
       >
         ORACLE
       </button>
@@ -76,7 +109,7 @@ export function TopNav({
         )}
 
         <span className="font-mono text-xs text-muted tnum">
-          anvil #{director.block ?? "—"}
+          {director.network ?? "chain"} #{director.block ?? "—"}
         </span>
 
         {isMock ? (
