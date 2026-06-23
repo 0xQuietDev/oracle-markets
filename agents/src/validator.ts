@@ -165,13 +165,43 @@ async function main() {
     }
   }
 
-  for (const log of await getOracleEvents(c, "DeliverySubmitted")) {
-    void handleDelivery(
-      log.args.taskId as bigint,
-      log.args.validationRequestHash as Hex,
-      log.args.evidenceURI as string,
-    );
+  // ---------------------------------------------------------------------------
+  // reconcile(): crash-safety. Re-scan DeliverySubmitted history and re-drive any
+  // task that is still in Delivered state, assigned to me, and not yet processed
+  // in this process. handleDelivery is idempotent: the Delivered-state guard and
+  // the `processed` set stop double-scoring, and validationResponse tolerates
+  // re-runs (it retries). So a daemon killed between scoring and settle, or one
+  // that crashed before scoring at all, resumes correctly on the next tick /
+  // restart. We key off the DeliverySubmitted log because it carries the
+  // validationRequestHash + evidenceURI that handleDelivery needs.
+  // ---------------------------------------------------------------------------
+  async function reconcile(): Promise<void> {
+    let logs;
+    try {
+      logs = await getOracleEvents(c, "DeliverySubmitted");
+    } catch (err) {
+      console.error("[validator] reconcile: getOracleEvents failed:", (err as Error).message);
+      return;
+    }
+    for (const log of logs) {
+      const taskId = log.args.taskId as bigint;
+      if (processed.has(taskId.toString())) continue;
+      try {
+        const t = await getTask(c, taskId);
+        // Only the validator assigned to a still-Delivered task should act.
+        if (t.validatorAgentId !== myAgentId || stateName(t.state) !== "Delivered") continue;
+        await handleDelivery(
+          taskId,
+          log.args.validationRequestHash as Hex,
+          log.args.evidenceURI as string,
+        );
+      } catch (err) {
+        console.error(`[validator] reconcile: task ${taskId} failed:`, (err as Error).message);
+      }
+    }
   }
+
+  // Live watcher funnels into the same idempotent handler.
   watchOracleEvent(c, "DeliverySubmitted", (logs) => {
     for (const log of logs) {
       void handleDelivery(
@@ -181,7 +211,11 @@ async function main() {
       );
     }
   });
-  console.log("[validator] watching DeliverySubmitted");
+
+  // Boot reconcile (catch up + resume in-flight) then periodic self-heal.
+  await reconcile();
+  setInterval(() => void reconcile(), 20_000);
+  console.log("[validator] watching DeliverySubmitted + reconcile every 20s");
 }
 
 main().catch((err) => {

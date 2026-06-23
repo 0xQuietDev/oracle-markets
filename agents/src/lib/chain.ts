@@ -70,14 +70,123 @@ export function makeClients(role: Role, deployment: Deployment = loadDeployment(
     rpcUrls: { default: { http: [deployment.rpcUrl] } },
   });
   const account = privateKeyToAccount(keyFor(role));
-  const publicClient = createPublicClient({ chain, transport: http(deployment.rpcUrl) });
-  const walletClient = createWalletClient({ account, chain, transport: http(deployment.rpcUrl) });
+  // Robust HTTP transport: viem-level retry + bounded timeout under flaky Fuji RPC.
+  const transport = http(deployment.rpcUrl, { retryCount: 3, timeout: 15000 });
+  const publicClient = createPublicClient({ chain, transport });
+  const walletClient = createWalletClient({ account, chain, transport });
   return { role, deployment, chain, account, publicClient, walletClient };
 }
 export type Clients = ReturnType<typeof makeClients>;
 
 const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 export const sleep = sleepMs;
+
+// --- RPC resilience -------------------------------------------------------
+// Transient network/provider errors worth retrying (DNS blips, timeouts,
+// dropped sockets, rate limits, gateway errors). Matched case-insensitively
+// against the error message *and* any nested `cause` chain.
+const TRANSIENT_PATTERNS = [
+  "fetch failed",
+  "enotfound",
+  "etimedout",
+  "econnreset",
+  "econnrefused",
+  "timeout",
+  "timed out",
+  "503",
+  "429",
+  "socket hang up",
+  "connect timeout",
+  "network",
+  "request failed",
+] as const;
+
+// Contract-level failures (reverts / custom errors) must NEVER be retried —
+// retrying a deterministic revert just wastes ~16s and hides the real error.
+const NON_TRANSIENT_PATTERNS = [
+  "revert",
+  "custom error",
+  "wrongstate",
+  "badparams",
+  "deadlinepassed",
+  "execution reverted",
+  "insufficient",
+  "unauthorized",
+  "notauthorized",
+] as const;
+
+function collectErrorText(err: unknown): string {
+  const parts: string[] = [];
+  let cur: unknown = err;
+  let depth = 0;
+  while (cur && depth < 8) {
+    if (cur instanceof Error) {
+      parts.push(cur.message);
+      // viem errors expose `shortMessage`/`details`/`metaMessages`.
+      const anyErr = cur as Error & {
+        shortMessage?: string;
+        details?: string;
+        metaMessages?: string[];
+        name?: string;
+      };
+      if (anyErr.name) parts.push(anyErr.name);
+      if (anyErr.shortMessage) parts.push(anyErr.shortMessage);
+      if (anyErr.details) parts.push(anyErr.details);
+      if (anyErr.metaMessages) parts.push(anyErr.metaMessages.join(" "));
+      cur = (cur as { cause?: unknown }).cause;
+    } else if (typeof cur === "string") {
+      parts.push(cur);
+      cur = undefined;
+    } else if (typeof cur === "object" && cur !== null) {
+      const obj = cur as { message?: unknown; cause?: unknown };
+      if (typeof obj.message === "string") parts.push(obj.message);
+      cur = obj.cause;
+    } else {
+      cur = undefined;
+    }
+    depth += 1;
+  }
+  return parts.join(" || ").toLowerCase();
+}
+
+export function isTransientRpcError(err: unknown): boolean {
+  const text = collectErrorText(err);
+  if (!text) return false;
+  // Deterministic contract failures win — never retry a revert.
+  if (NON_TRANSIENT_PATTERNS.some((p) => text.includes(p))) return false;
+  return TRANSIENT_PATTERNS.some((p) => text.includes(p));
+}
+
+export type RpcRetryOpts = { retries?: number; baseMs?: number; capMs?: number };
+
+/**
+ * Run an RPC-touching fn with exponential backoff on TRANSIENT errors only.
+ * Backoff: ~800ms, 1.6s, 3.2s, 6.4s, capped ~8s. Reverts/custom errors and any
+ * other non-transient failure rethrow immediately.
+ */
+export async function withRpcRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  opts: RpcRetryOpts = {},
+): Promise<T> {
+  const retries = opts.retries ?? 5;
+  const baseMs = opts.baseMs ?? 800;
+  const capMs = opts.capMs ?? 8000;
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt += 1;
+      if (attempt > retries || !isTransientRpcError(err)) throw err;
+      const delay = Math.min(capMs, baseMs * 2 ** (attempt - 1));
+      console.warn(
+        `[rpc:${label}] transient error (attempt ${attempt}/${retries}), backing off ${delay}ms: ${(err as Error).message}`,
+      );
+      await sleepMs(delay);
+    }
+  }
+}
 
 /** simulate -> write -> wait one receipt, against any contract. */
 export async function writeAndWait(
@@ -87,15 +196,24 @@ export async function writeAndWait(
   functionName: string,
   args: readonly unknown[],
 ) {
-  const { request } = await c.publicClient.simulateContract({
-    account: c.account,
-    address,
-    abi: abi as Abi,
-    functionName: functionName as never,
-    args: args as never,
+  // simulate surfaces contract reverts (non-transient -> immediate rethrow);
+  // transient RPC blips on any of the three steps are retried with backoff.
+  const request = await withRpcRetry(`simulate:${functionName}`, async () => {
+    const sim = await c.publicClient.simulateContract({
+      account: c.account,
+      address,
+      abi: abi as Abi,
+      functionName: functionName as never,
+      args: args as never,
+    });
+    return sim.request;
   });
-  const hash = await c.walletClient.writeContract(request as never);
-  return c.publicClient.waitForTransactionReceipt({ hash });
+  const hash = await withRpcRetry(`write:${functionName}`, () =>
+    c.walletClient.writeContract(request as never),
+  );
+  return withRpcRetry(`receipt:${functionName}`, () =>
+    c.publicClient.waitForTransactionReceipt({ hash }),
+  );
 }
 
 export function writeOracle(c: Clients, functionName: string, args: readonly unknown[] = []) {
@@ -125,12 +243,14 @@ export function writeIdentityRegistry(c: Clients, functionName: string, args: re
 /** One-time max USDC approval to OracleCore (no-op if allowance is ample). */
 export async function approveUsdcOnce(c: Clients): Promise<void> {
   const { usdc, oracleCore } = c.deployment.contracts;
-  const allowance = (await c.publicClient.readContract({
-    address: usdc,
-    abi: USDC_ABI,
-    functionName: "allowance",
-    args: [c.account.address, oracleCore],
-  })) as bigint;
+  const allowance = (await withRpcRetry("allowance", () =>
+    c.publicClient.readContract({
+      address: usdc,
+      abi: USDC_ABI,
+      functionName: "allowance",
+      args: [c.account.address, oracleCore],
+    }),
+  )) as bigint;
   if (allowance >= 10_000_000_000n) return; // >= 10k USDC is plenty for the demo
   await writeAndWait(c, usdc, USDC_ABI as unknown as Abi, "approve", [oracleCore, maxUint256]);
   console.log(`[${c.role}] approved USDC -> OracleCore`);
@@ -160,12 +280,14 @@ export type TaskOnChain = {
 };
 
 export async function getTask(c: Clients, taskId: bigint): Promise<TaskOnChain> {
-  const t = (await c.publicClient.readContract({
-    address: c.deployment.contracts.oracleCore,
-    abi: ORACLE_CORE_ABI,
-    functionName: "tasks",
-    args: [taskId],
-  })) as readonly unknown[];
+  const t = (await withRpcRetry(`getTask:${taskId}`, () =>
+    c.publicClient.readContract({
+      address: c.deployment.contracts.oracleCore,
+      abi: ORACLE_CORE_ABI,
+      functionName: "tasks",
+      args: [taskId],
+    }),
+  )) as readonly unknown[];
   return {
     client: t[0] as Address,
     workerAgentId: BigInt(t[1] as bigint),
@@ -203,13 +325,15 @@ async function getLogsChunked(c: Clients, eventName: string, fromBlock: bigint, 
   const out: OracleLog[] = [];
   for (let from = fromBlock; from <= toBlock; from += LOG_CHUNK) {
     const to = from + LOG_CHUNK - 1n > toBlock ? toBlock : from + LOG_CHUNK - 1n;
-    const logs = (await c.publicClient.getContractEvents({
-      address: c.deployment.contracts.oracleCore,
-      abi: ORACLE_CORE_ABI,
-      eventName: eventName as never,
-      fromBlock: from,
-      toBlock: to,
-    })) as OracleLog[];
+    const logs = (await withRpcRetry(`getLogs:${eventName}`, () =>
+      c.publicClient.getContractEvents({
+        address: c.deployment.contracts.oracleCore,
+        abi: ORACLE_CORE_ABI,
+        eventName: eventName as never,
+        fromBlock: from,
+        toBlock: to,
+      }),
+    )) as OracleLog[];
     out.push(...logs);
   }
   return out;
@@ -229,13 +353,15 @@ export function watchOracleEvent(
   let cursor: bigint | null = null;
   (async () => {
     try {
-      cursor = await c.publicClient.getBlockNumber();
+      cursor = await withRpcRetry(`watch:${eventName}:init`, () => c.publicClient.getBlockNumber());
     } catch {
       cursor = BigInt(c.deployment.deployBlock);
     }
     while (!stopped) {
       try {
-        const latest = await c.publicClient.getBlockNumber();
+        const latest = await withRpcRetry(`watch:${eventName}:head`, () =>
+          c.publicClient.getBlockNumber(),
+        );
         const from = (cursor ?? latest) + 1n;
         if (latest >= from) {
           const logs = await getLogsChunked(c, eventName, from, latest);
@@ -255,14 +381,16 @@ export function watchOracleEvent(
 
 /** Catch-up scan from deployBlock for events emitted before the daemon booted. */
 export async function getOracleEvents(c: Clients, eventName: string) {
-  const latest = await c.publicClient.getBlockNumber();
+  const latest = await withRpcRetry(`getOracleEvents:${eventName}:head`, () =>
+    c.publicClient.getBlockNumber(),
+  );
   return getLogsChunked(c, eventName, BigInt(c.deployment.deployBlock), latest);
 }
 
 /** Poll block timestamps until chain time is strictly greater than tsSec. */
 export async function waitForTimestamp(c: Clients, tsSec: bigint): Promise<void> {
   for (;;) {
-    const block = await c.publicClient.getBlock();
+    const block = await withRpcRetry("waitForTimestamp:getBlock", () => c.publicClient.getBlock());
     if (block.timestamp > tsSec) return;
     await sleepMs(1000);
   }
