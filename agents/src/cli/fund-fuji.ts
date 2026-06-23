@@ -19,7 +19,7 @@ const RPC = process.env.FUJI_RPC ?? "https://api.avax-test.network/ext/bc/C/rpc"
 // gas top-up per wallet, and USDC mint per spender. Fuji gas is ~2 gwei, so a
 // full multi-task run costs ~0.02 AVAX total — these tiny top-ups let one small
 // zero-prerequisite faucet drip cover the entire fleet.
-const GAS_AVAX = process.env.FUND_GAS_AVAX ?? "0.004";
+const GAS_AVAX = process.env.FUND_GAS_AVAX ?? "0.02";
 const USDC_EACH = BigInt(process.env.FUND_USDC_EACH ?? "200") * 1_000_000n; // 200 USDC (our mint — free)
 
 // role -> env key name
