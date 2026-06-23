@@ -66,17 +66,23 @@ async function main() {
   console.log(`[fund] deployer ${deployer.address} AVAX=${Number(bal) / 1e18}`);
   if (bal === 0n) throw new Error("deployer has no AVAX — fund it from the Avalanche Fuji faucet first");
 
-  // 1) AVAX gas to each signer
+  // 1) AVAX gas to each signer. The relayer signs EVERY x402 settlement
+  // (worker payments + every bettor odds/trust read), so it burns gas far faster
+  // than the others — give it a much larger allotment or odds payments start
+  // failing with "gas required exceeds allowance".
+  const RELAYER_GAS = process.env.FUND_RELAYER_AVAX ?? "0.08";
   for (const role of NEEDS_GAS) {
     const { address } = addrOf(role);
+    const target = role === "relayer" ? RELAYER_GAS : GAS_AVAX;
     const have = await pub.getBalance({ address });
-    if (have >= parseEther(GAS_AVAX)) {
+    if (have >= parseEther(target)) {
       console.log(`[fund] ${role} already has gas (${Number(have) / 1e18} AVAX)`);
       continue;
     }
-    const hash = await dWallet.sendTransaction({ to: address, value: parseEther(GAS_AVAX) });
+    const topUp = parseEther(target) - have;
+    const hash = await dWallet.sendTransaction({ to: address, value: topUp });
     await pub.waitForTransactionReceipt({ hash });
-    console.log(`[fund] ${role} <- ${GAS_AVAX} AVAX  ${hash}`);
+    console.log(`[fund] ${role} <- ${Number(topUp) / 1e18} AVAX (target ${target})  ${hash}`);
   }
 
   // 2) USDC to each spender (MockUSDC public mint; deployer signs)
