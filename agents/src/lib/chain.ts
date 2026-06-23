@@ -194,31 +194,69 @@ export function stateName(state: number): string {
   return TASK_STATE[state] ?? `Unknown(${state})`;
 }
 
-/** Watch one OracleCore event (poll-based; works on anvil and Fuji). */
+type OracleLog = { args: Record<string, unknown>; blockNumber: bigint | null };
+
+// Fuji caps eth_getLogs at ~2048 blocks/request — chunk to stay under it.
+const LOG_CHUNK = 2000n;
+
+async function getLogsChunked(c: Clients, eventName: string, fromBlock: bigint, toBlock: bigint): Promise<OracleLog[]> {
+  const out: OracleLog[] = [];
+  for (let from = fromBlock; from <= toBlock; from += LOG_CHUNK) {
+    const to = from + LOG_CHUNK - 1n > toBlock ? toBlock : from + LOG_CHUNK - 1n;
+    const logs = (await c.publicClient.getContractEvents({
+      address: c.deployment.contracts.oracleCore,
+      abi: ORACLE_CORE_ABI,
+      eventName: eventName as never,
+      fromBlock: from,
+      toBlock: to,
+    })) as OracleLog[];
+    out.push(...logs);
+  }
+  return out;
+}
+
+/**
+ * Watch one OracleCore event with a manual cursor-based poll. Robust on Fuji
+ * (bounded getLogs ranges, survives RPC hiccups) where viem's watchContractEvent
+ * can silently stall once the range exceeds the provider's getLogs cap.
+ */
 export function watchOracleEvent(
   c: Clients,
   eventName: string,
-  onLogs: (logs: { args: Record<string, unknown>; blockNumber: bigint | null }[]) => void,
-) {
-  return c.publicClient.watchContractEvent({
-    address: c.deployment.contracts.oracleCore,
-    abi: ORACLE_CORE_ABI,
-    eventName: eventName as never,
-    onLogs: onLogs as never,
-    poll: true,
-    pollingInterval: 1000,
-  });
+  onLogs: (logs: OracleLog[]) => void,
+): () => void {
+  let stopped = false;
+  let cursor: bigint | null = null;
+  (async () => {
+    try {
+      cursor = await c.publicClient.getBlockNumber();
+    } catch {
+      cursor = BigInt(c.deployment.deployBlock);
+    }
+    while (!stopped) {
+      try {
+        const latest = await c.publicClient.getBlockNumber();
+        const from = (cursor ?? latest) + 1n;
+        if (latest >= from) {
+          const logs = await getLogsChunked(c, eventName, from, latest);
+          cursor = latest;
+          if (logs.length) onLogs(logs);
+        }
+      } catch (err) {
+        console.error(`[watch:${eventName}] poll error (continuing):`, (err as Error).message);
+      }
+      await sleep(1500);
+    }
+  })();
+  return () => {
+    stopped = true;
+  };
 }
 
 /** Catch-up scan from deployBlock for events emitted before the daemon booted. */
 export async function getOracleEvents(c: Clients, eventName: string) {
-  return c.publicClient.getContractEvents({
-    address: c.deployment.contracts.oracleCore,
-    abi: ORACLE_CORE_ABI,
-    eventName: eventName as never,
-    fromBlock: BigInt(c.deployment.deployBlock),
-    toBlock: "latest",
-  }) as Promise<{ args: Record<string, unknown>; blockNumber: bigint | null }[]>;
+  const latest = await c.publicClient.getBlockNumber();
+  return getLogsChunked(c, eventName, BigInt(c.deployment.deployBlock), latest);
 }
 
 /** Poll block timestamps until chain time is strictly greater than tsSec. */

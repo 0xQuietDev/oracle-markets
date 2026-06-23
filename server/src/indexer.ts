@@ -241,51 +241,55 @@ export async function startIndexer(opts: IndexerOptions): Promise<Indexer> {
     }
   }
 
-  // ---- catch-up ----
-  const latest = await client.getBlockNumber();
-  const fromBlock = BigInt(dep.deployBlock);
-  const coreLogs = (await client.getLogs({
-    address: dep.contracts.oracleCore,
-    events: CORE_EVENTS,
-    fromBlock,
-    toBlock: latest,
-  })) as unknown as AnyLog[];
-  await processBatch("cursor:core", coreLogs, handleCoreLog);
-  const valLogs = (await client.getLogs({
-    address: dep.contracts.validationRegistry,
-    events: VAL_EVENTS,
-    fromBlock,
-    toBlock: latest,
-  })) as unknown as AnyLog[];
-  await processBatch("cursor:val", valLogs, handleValLog);
-  db.setMeta("lastBlock", latest.toString());
+  // Fuji caps eth_getLogs at ~2048 blocks/request — chunk every scan to stay under.
+  const LOG_CHUNK = 2000n;
+  async function getLogsChunked(address: `0x${string}`, events: unknown, from: bigint, to: bigint): Promise<AnyLog[]> {
+    const out: AnyLog[] = [];
+    for (let f = from; f <= to; f += LOG_CHUNK) {
+      const t = f + LOG_CHUNK - 1n > to ? to : f + LOG_CHUNK - 1n;
+      const logs = (await client.getLogs({ address, events: events as never, fromBlock: f, toBlock: t })) as unknown as AnyLog[];
+      out.push(...logs);
+    }
+    return out;
+  }
 
-  // ---- live watch (serialized so handlers never interleave) ----
+  // ---- catch-up (chunked) ----
+  const startBlock = await client.getBlockNumber();
+  const fromBlock = BigInt(dep.deployBlock);
+  await processBatch("cursor:core", await getLogsChunked(dep.contracts.oracleCore, CORE_EVENTS, fromBlock, startBlock), handleCoreLog);
+  await processBatch("cursor:val", await getLogsChunked(dep.contracts.validationRegistry, VAL_EVENTS, fromBlock, startBlock), handleValLog);
+  db.setMeta("lastBlock", startBlock.toString());
+
+  // ---- live watch: manual cursor poll (Fuji-safe; bounded ranges, survives RPC errors) ----
   let queue: Promise<void> = Promise.resolve();
   const enqueue = (fn: () => Promise<void>) => {
     queue = queue.then(fn).catch((err) => console.error("[indexer] watch batch failed", err));
   };
-
-  const unwatchCore = client.watchContractEvent({
-    address: dep.contracts.oracleCore,
-    abi: ORACLE_CORE_ABI,
-    pollingInterval,
-    onLogs: (logs) => enqueue(() => processBatch("cursor:core", logs as unknown as AnyLog[], handleCoreLog)),
-    onError: (err) => console.error("[indexer] core watch error", err),
-  });
-  const unwatchVal = client.watchContractEvent({
-    address: dep.contracts.validationRegistry,
-    abi: VALIDATION_REGISTRY_ABI,
-    eventName: "ValidationResponded",
-    pollingInterval,
-    onLogs: (logs) => enqueue(() => processBatch("cursor:val", logs as unknown as AnyLog[], handleValLog)),
-    onError: (err) => console.error("[indexer] validation watch error", err),
-  });
+  let cursor = startBlock;
+  let stopped = false;
+  (async () => {
+    while (!stopped) {
+      try {
+        const latest = await client.getBlockNumber();
+        if (latest > cursor) {
+          const from = cursor + 1n;
+          const core = await getLogsChunked(dep.contracts.oracleCore, CORE_EVENTS, from, latest);
+          const val = await getLogsChunked(dep.contracts.validationRegistry, VAL_EVENTS, from, latest);
+          cursor = latest;
+          if (core.length) enqueue(() => processBatch("cursor:core", core, handleCoreLog));
+          if (val.length) enqueue(() => processBatch("cursor:val", val, handleValLog));
+          enqueue(async () => db.setMeta("lastBlock", latest.toString()));
+        }
+      } catch (err) {
+        console.error("[indexer] poll error (continuing):", (err as Error).message);
+      }
+      await new Promise((r) => setTimeout(r, Math.max(1000, pollingInterval)));
+    }
+  })();
 
   return {
     stop() {
-      unwatchCore();
-      unwatchVal();
+      stopped = true;
     },
   };
 }

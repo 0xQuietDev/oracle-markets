@@ -1,19 +1,59 @@
 {
   "chainId": 43113,
   "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
-  "deployBlock": 0,
+  "deployBlock": 56454939,
   "contracts": {
-    "oracleCore": "0x0000000000000000000000000000000000000000",
-    "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65",
+    "oracleCore": "0xa8Cc58b1E28ee7b5B8fc870402DC1515f4fe7BAD",
+    "usdc": "0x08386F62725b25d8506e5B0016E13574980760Db",
     "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
-    "validationRegistry": "0x0000000000000000000000000000000000000000"
+    "validationRegistry": "0xC5a96DE9d445849CB5c159967A5532D2D3CBAE81"
   },
-  "usdcDomain": { "name": "USD Coin", "version": "2" },
+  "usdcDomain": {
+    "name": "USD Coin",
+    "version": "2"
+  },
   "params": {
-    "minSelfStakeBps": 1000, "protocolFeeBps": 200, "validatorFeeShareBps": 5000,
-    "bettingWindow": 180, "acceptWindow": 300, "disputeWindow": 120, "graceWindow": 60,
-    "validationThreshold": 80, "minBet": "100000", "maxPoolPerSide": "10000000000", "minReward": "1000000"
+    "minSelfStakeBps": 1000,
+    "protocolFeeBps": 200,
+    "validatorFeeShareBps": 5000,
+    "bettingWindow": 180,
+    "acceptWindow": 300,
+    "disputeWindow": 120,
+    "graceWindow": 60,
+    "validationThreshold": 80,
+    "minBet": "100000",
+    "maxPoolPerSide": "10000000000",
+    "minReward": "1000000"
   },
-  "agents": {}
+  "agents": {
+    "worker": {
+      "address": "0x3CA7382b291B421d465447F1F278a4ee7ef63e64",
+      "agentId": 211
+    },
+    "validator": {
+      "address": "0xc8Af8a9482B3a3a4717171E5094529443Dc72fE4",
+      "agentId": 212
+    },
+    "bettorRep": {
+      "address": "0x97f90FC866cff1D6E091401Ee0BC96B76BfF899b",
+      "agentId": 213
+    },
+    "bettorSkeptic": {
+      "address": "0xaBa547D8bA9AFdD3Ef948AE568A189C4b67DB21f",
+      "agentId": 214
+    },
+    "bettorMirror": {
+      "address": "0x00DC79d2bF4df4a649CC69d584eC05DADf424abd",
+      "agentId": 215
+    },
+    "vendor": {
+      "address": "0xb8CF3373A54E947fad2C75Cb37690292D939F8ca",
+      "agentId": 216
+    },
+    "human": {
+      "address": "0xcEB0fC94f927402D4b73b6CCeA6ec7b61B80c0E0",
+      "agentId": 217
+    }
+  }
 }

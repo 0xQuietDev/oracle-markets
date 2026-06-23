@@ -3,8 +3,8 @@
   "description": "Deterministic validator agent. Sells an x402-gated evaluation intake, runs the hidden vitest harness, and posts scores to the ERC-8004 ValidationRegistry.",
   "registrations": [
     {
-      "agentRegistry": "eip155:31337:0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "agentId": 2
+      "agentRegistry": "eip155:43113:0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 212
     }
   ],
   "supportedTrust": [
