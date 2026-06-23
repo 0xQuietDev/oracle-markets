@@ -9,7 +9,6 @@ import { Tabs } from "@heroui/react";
 import { useState } from "react";
 import { specName, usd } from "../format.js";
 import {
-  bettingOpen as bettingOpenFn,
   displayState,
   isSettled,
   phaseMeta,
@@ -23,7 +22,6 @@ import { AgentFeed } from "./AgentFeed.js";
 import { FlowCanvas } from "./FlowCanvas.js";
 import { OrderFlow } from "./OrderFlow.js";
 import { PriceChart } from "./PriceChart.js";
-import { TradeTicket } from "./TradeTicket.js";
 import { TxRail } from "./TxRail.js";
 
 type Tab = "activity" | "flow" | "onchain";
@@ -51,7 +49,6 @@ export function MarketDetail({
   const t = entry.task;
   const phase = displayState(entry, now);
   const settled = isSettled(entry, now);
-  const open = bettingOpenFn(entry, now);
   const meta = phaseMeta(phase);
   const { yesCents, noCents, deltaCents } = prices(entry);
   const yesLeading = yesCents >= noCents;
@@ -59,15 +56,6 @@ export function MarketDetail({
 
   const taskActivity = state.activity.filter((a) => a.taskId === t.taskId);
   const taskTxs = state.txs.filter((x) => x.taskId === t.taskId);
-
-  const closedReason =
-    phase === "Settled"
-      ? `Betting closed — settled ${t.outcome?.toUpperCase() ?? ""}`
-      : phase === "Executing"
-        ? "Betting closed — worker is executing"
-        : phase === "Delivered"
-          ? "Betting closed — awaiting validation"
-          : "Betting not open";
 
   return (
     <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-5 px-5 py-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -230,16 +218,8 @@ export function MarketDetail({
         </Tabs>
       </div>
 
-      {/* RIGHT rail */}
+      {/* RIGHT rail — the agent "honesty market" (no human betting) */}
       <div className="flex min-h-0 flex-col gap-4 xl:sticky xl:top-[4.5rem] xl:h-[calc(100vh-6rem)]">
-        <TradeTicket
-          taskId={t.taskId}
-          yesCents={yesCents}
-          noCents={noCents}
-          bettingOpen={open}
-          closedReason={closedReason}
-          control={control}
-        />
         <OrderFlow bets={entry.bets} control={control} />
         <TxRail txs={taskTxs} onOpenTx={onOpenTx} />
       </div>

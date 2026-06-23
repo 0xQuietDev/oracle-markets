@@ -71,30 +71,36 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
  */
 export function x402Middleware(o: X402MiddlewareOptions): RequestHandler {
   return (req, res, next) => {
-    const reject = () => {
+    const reject = (reason: string) => {
+      // X402_DEBUG=1 surfaces which guard rejected a payment (diagnostics).
+      if (process.env.X402_DEBUG && reason !== "no-payment") {
+        console.warn(`[x402] 402 ${req.path} reason=${reason}`);
+      }
       res.status(402).json(challengeFor(o, req));
     };
     (async () => {
       const header = req.header("X-PAYMENT");
-      if (!header) return reject();
+      if (!header) return reject("no-payment");
 
       let payment: PaymentPayload;
       try {
         payment = decodePaymentHeader(header);
       } catch {
-        return reject();
+        return reject("bad-header");
       }
       const auth = payment?.payload?.authorization;
-      if (!auth || payment.scheme !== "exact" || payment.network !== o.network) return reject();
+      if (!auth) return reject("no-auth");
+      if (payment.scheme !== "exact") return reject("scheme");
+      if (payment.network !== o.network) return reject(`network(${payment.network}!=${o.network})`);
 
       let value: bigint;
       try {
         value = BigInt(auth.value);
       } catch {
-        return reject();
+        return reject("bad-value");
       }
-      if (value < o.priceUnits) return reject();
-      if (auth.to.toLowerCase() !== o.payTo.toLowerCase()) return reject();
+      if (value < o.priceUnits) return reject(`value(${value}<${o.priceUnits})`);
+      if (auth.to.toLowerCase() !== o.payTo.toLowerCase()) return reject(`payTo(${auth.to}!=${o.payTo})`);
 
       const now = BigInt(Math.floor(Date.now() / 1000));
       let validAfter: bigint, validBefore: bigint;
@@ -102,22 +108,22 @@ export function x402Middleware(o: X402MiddlewareOptions): RequestHandler {
         validAfter = BigInt(auth.validAfter);
         validBefore = BigInt(auth.validBefore);
       } catch {
-        return reject();
+        return reject("bad-window");
       }
-      if (validAfter > now || validBefore <= now) return reject();
+      if (validAfter > now || validBefore <= now) return reject("time-window");
 
       const requirements = requirementsFor(o, req);
       const verify = await postJson<VerifyResponse>(`${o.facilitatorUrl}/verify`, {
         paymentPayload: payment,
         paymentRequirements: requirements,
       });
-      if (!verify.isValid) return reject();
+      if (!verify.isValid) return reject(`verify(${verify.invalidReason ?? "?"})`);
 
       const settle = await postJson<SettleResponse>(`${o.facilitatorUrl}/settle`, {
         paymentPayload: payment,
         paymentRequirements: requirements,
       });
-      if (!settle.success) return reject();
+      if (!settle.success) return reject(`settle(${settle.errorReason ?? "?"})`);
 
       res.setHeader(
         "X-PAYMENT-RESPONSE",

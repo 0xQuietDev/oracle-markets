@@ -96,6 +96,46 @@ export async function llmConfidence(spec: TaskSpec): Promise<{ confidence: numbe
   });
 }
 
+// ---------------------------------------------------------------- judge
+
+const judgeAgent = new Agent({
+  id: "oracle-judge",
+  name: "ORACLE Judge",
+  instructions: [
+    "You are a strict, fair automated code reviewer settling a prediction market on whether a worker delivered a task.",
+    "Given a task specification and the worker's submitted solution, score how well the solution satisfies the spec from 0 to 100.",
+    "Judge correctness against the stated requirements and obvious edge cases. Be objective: a correct, complete solution scores high; a missing, broken, or off-spec one scores low. 80+ means it genuinely meets the requirements.",
+  ].join("\n"),
+  model: geminiModel(),
+});
+
+const JudgeSchema = z.object({
+  score: z.number().min(0).max(100).describe("0-100 how well the solution meets the spec"),
+  reasoning: z.string().describe("one or two sentences justifying the score"),
+});
+
+/** LLM judge for custom markets (no hidden test suite). Returns score 0-100. */
+export async function llmJudge(
+  spec: TaskSpec,
+  solution: string,
+): Promise<{ score: number; reasoning: string }> {
+  return withRetry("llmJudge", async () => {
+    const res = await judgeAgent.generate(
+      [
+        {
+          role: "user",
+          content:
+            `Task specification:\n${specBlock(spec)}\n\n` +
+            `Worker's submitted solution:\n\`\`\`\n${solution.slice(0, 8000)}\n\`\`\`\n\n` +
+            `Score 0-100 how well it satisfies the spec.`,
+        },
+      ],
+      { structuredOutput: { schema: JudgeSchema } },
+    );
+    return await res.object;
+  });
+}
+
 /** Worker actually writes the solution. Returns sanitized standalone module source. */
 export async function llmSolution(spec: TaskSpec, fnName: string): Promise<string> {
   return withRetry("llmSolution", async () => {

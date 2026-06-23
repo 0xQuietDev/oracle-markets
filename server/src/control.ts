@@ -1,7 +1,7 @@
 // Control plane: lets the UI drive the demo (create tasks on-chain as the
 // client). Kept separate from the read-only indexer/API. Uses the CLIENT_KEY
 // (anvil account 1 by default) to approve USDC once and call createTask.
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   createPublicClient,
@@ -23,11 +23,20 @@ const DEFAULT_HUMAN_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae7
 
 export type TemplateInfo = { template: string; file: string; fn: string; title: string };
 
+export type CreateMarketOpts = {
+  template?: string; // built-in template id (deterministic validation)
+  title?: string; // custom market question / title
+  prompt?: string; // custom task description
+  fn?: string; // custom function signature, e.g. "reverseWords(s: string): string"
+  rewardUsdc?: number; // whole USDC
+  deadlineMinutes?: number; // betting+execution window
+};
+
 export type Control = {
   available: boolean;
   reason?: string;
   templates: () => TemplateInfo[];
-  createTask: (template: string) => Promise<{ taskId: number; txHash: Hex; deadline: number }>;
+  createTask: (opts: CreateMarketOpts) => Promise<{ taskId: number; txHash: Hex; deadline: number }>;
   // manual human trading
   canBet: boolean;
   humanAgentId?: number;
@@ -156,20 +165,49 @@ export function makeControl(dep: Deployment, specsDir: string, baseUrl: string):
       await publicClient.waitForTransactionReceipt({ hash: txHash });
       return { txHash };
     },
-    async createTask(template: string) {
-      const info = templates().find((t) => t.template === template || t.file === template);
-      if (!info) throw new Error(`unknown template "${template}"`);
+    async createTask(opts: CreateMarketOpts) {
       await approveOnce();
 
-      const specBytes = new Uint8Array(readFileSync(join(specsDir, info.file)));
+      // Resolve the spec: a built-in template (deterministic validation) or a
+      // custom market the user typed (validated by an LLM judge — see validator).
+      let specFile: string;
+      if (opts.template) {
+        const info = templates().find((t) => t.template === opts.template || t.file === opts.template);
+        if (!info) throw new Error(`unknown template "${opts.template}"`);
+        specFile = info.file;
+      } else {
+        const fn = (opts.fn ?? "").trim();
+        const prompt = (opts.prompt ?? opts.title ?? "").trim();
+        if (!fn) throw new Error("custom market needs a function signature (fn)");
+        if (!prompt) throw new Error("custom market needs a question/description");
+        const spec = {
+          template: "custom",
+          title: opts.title ?? fn,
+          fn,
+          rules: prompt.split("\n").map((s) => s.trim()).filter(Boolean),
+          examples: [] as unknown[],
+          judge: "llm", // tells the validator to score via LLM judge, not vitest
+        };
+        const body = JSON.stringify(spec, null, 2);
+        specFile = `custom-${keccak256(new TextEncoder().encode(body)).slice(2, 12)}.json`;
+        writeFileSync(join(specsDir, specFile), body);
+      }
+
+      const specBytes = new Uint8Array(readFileSync(join(specsDir, specFile)));
       const specHash = keccak256(specBytes);
-      const specURI = `${baseUrl}/specs/${info.file}`;
-      // Reward: TASK_REWARD_USDC env (whole USDC) if set, else 100 USDC, clamped
-      // to >= minReward. Keep it modest on Fuji to limit test-token spend.
+      const specURI = `${baseUrl}/specs/${specFile}`;
+      // Reward: explicit rewardUsdc, else TASK_REWARD_USDC env, else 100 USDC;
+      // clamped to >= minReward.
       const envReward = process.env.TASK_REWARD_USDC ? BigInt(process.env.TASK_REWARD_USDC) * 1_000_000n : 100_000_000n;
-      const reward = envReward >= BigInt(dep.params.minReward) ? envReward : BigInt(dep.params.minReward);
+      const want = opts.rewardUsdc != null ? BigInt(Math.round(opts.rewardUsdc * 1_000_000)) : envReward;
+      const reward = want >= BigInt(dep.params.minReward) ? want : BigInt(dep.params.minReward);
       const nowChain = (await publicClient.getBlock()).timestamp;
-      const deadline = nowChain + BigInt(dep.params.bettingWindow + 600);
+      // Contract requires deadline > now + BETTING_WINDOW; keep a safe margin so
+      // there's time to execute + validate after betting closes.
+      const minWindow = dep.params.bettingWindow + 120;
+      const reqWindow = opts.deadlineMinutes != null ? Math.round(opts.deadlineMinutes * 60) : dep.params.bettingWindow + 600;
+      const windowSec = Math.max(minWindow, reqWindow);
+      const deadline = nowChain + BigInt(windowSec);
 
       // Post an OPEN job (workerAgentId = 0): worker agents browse and one
       // autonomously claims it. (Pass OPEN_WORKER=<id> to pre-assign instead.)

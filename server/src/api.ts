@@ -305,19 +305,28 @@ export function createApp(opts: ApiOptions): Express {
     });
   });
 
-  // POST /v1/control/task { template } — create a task on-chain (client role).
-  app.post("/v1/control/task", jsonBody, (req, res, next) => {
+  // POST /v1/control/task — open a market on-chain (client role). Either a
+  // built-in { template } or a custom { title, prompt, fn, rewardUsdc, deadlineMinutes }.
+  app.post("/v1/control/task", jsonBody, (req, res) => {
     if (!opts.control?.available) {
       res.status(503).json({ error: "control_unavailable", reason: opts.control?.reason });
       return;
     }
-    const template = (req.body ?? {}).template as string | undefined;
-    if (typeof template !== "string") {
-      res.status(400).json({ error: "template_required" });
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const o = {
+      template: typeof b.template === "string" ? b.template : undefined,
+      title: typeof b.title === "string" ? b.title : undefined,
+      prompt: typeof b.prompt === "string" ? b.prompt : undefined,
+      fn: typeof b.fn === "string" ? b.fn : undefined,
+      rewardUsdc: typeof b.rewardUsdc === "number" ? b.rewardUsdc : undefined,
+      deadlineMinutes: typeof b.deadlineMinutes === "number" ? b.deadlineMinutes : undefined,
+    };
+    if (!o.template && !o.fn) {
+      res.status(400).json({ error: "bad_request", message: "provide a template, or a custom fn + prompt" });
       return;
     }
     opts.control
-      .createTask(template)
+      .createTask(o)
       .then((r) => res.json({ ok: true, ...r }))
       .catch((err) => {
         console.error("[control] createTask failed:", (err as Error).message);

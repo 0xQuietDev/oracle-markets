@@ -16,6 +16,12 @@ const VITEST_BIN = join(AGENTS_ROOT, "node_modules", ".bin", "vitest");
 export type HarnessTest = { name: string; pass: boolean };
 export type HarnessResult = { passed: number; total: number; score: number; tests: HarnessTest[] };
 
+/** True if a built-in hidden vitest suite exists for this template (objective
+ *  scoring). Custom markets have none → the validator uses the LLM judge. */
+export function hasHiddenSuite(template: string): boolean {
+  return existsSync(join(HIDDEN_TESTS_DIR, template, "hidden.test.ts"));
+}
+
 export async function runHarness(
   template: string,
   solutionSource: string,

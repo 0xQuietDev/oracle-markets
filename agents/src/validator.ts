@@ -20,9 +20,10 @@ import {
   writeValidationRegistry,
 } from "./lib/chain.js";
 import { templateFromSpecURI } from "./lib/confidence.js";
-import { runHarness } from "./lib/harness.js";
+import { runHarness, hasHiddenSuite } from "./lib/harness.js";
 import { makeGate } from "./lib/payments.js";
 import { reportActivity, reportPayment, x402Settlement } from "./lib/report.js";
+import { llmJudge } from "./mastra/agents.js";
 
 async function main() {
   const deployment = loadDeployment();
@@ -88,14 +89,33 @@ async function main() {
       if (!evidenceRes.ok) throw new Error(`GET evidence -> ${evidenceRes.status}`);
       const solution = await evidenceRes.text();
 
-      const { passed, total, score, tests } = await runHarness(template, solution, `task-${key}`);
-      console.log(`[validator] task ${taskId}: ${passed}/${total} passed -> score ${score}`);
+      // Built-in templates have a hidden vitest suite (objective). Custom markets
+      // (spec.judge === "llm" / no suite) are scored by the deterministic-where-
+      // possible LLM judge.
+      let score: number;
+      let verdictText: string;
+      let tests: { name: string; pass: boolean }[] = [];
+      const spec = await fetch(t.specURI).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const isCustom = spec?.judge === "llm" || !hasHiddenSuite(template);
+
+      if (isCustom) {
+        const j = await llmJudge(spec ?? { fn: template }, solution);
+        score = Math.round(j.score);
+        verdictText = `LLM judge: ${score}/100 — ${j.reasoning}`;
+        console.log(`[validator] task ${taskId}: [judge] ${score}/100 — ${j.reasoning}`);
+      } else {
+        const h = await runHarness(template, solution, `task-${key}`);
+        score = h.score;
+        tests = h.tests;
+        verdictText = `${h.passed}/${h.total} hidden tests passed`;
+        console.log(`[validator] task ${taskId}: ${h.passed}/${h.total} passed -> score ${score}`);
+      }
       reportActivity({
         taskId: Number(taskId),
         agent: "ORACLE Validator",
         role: "validator",
         kind: "verdict",
-        text: `${passed}/${total} hidden tests passed`,
+        text: verdictText,
         score,
         tests,
       });
@@ -105,9 +125,10 @@ async function main() {
           taskId: Number(taskId),
           template,
           evidenceURI,
-          passed,
-          total,
+          mode: isCustom ? "llm-judge" : "hidden-tests",
+          verdict: verdictText,
           score,
+          tests,
           validatorAgentId: Number(myAgentId),
           generatedAt: new Date().toISOString(),
         },
