@@ -68,11 +68,18 @@ async function main() {
           break;
         case "Open":
         case "Executing":
-          // We staked on this task (acceptAndStake succeeded) but a crash may
-          // have happened before we delivered. Resume execute -> deliver ->
-          // validationRequest if it's ours and not yet delivered.
           if (mine(t.workerWallet) && t.deliveredAt === 0n) {
-            await executeAndDeliver(taskId, t);
+            const nowSec = BigInt(Math.floor(Date.now() / 1000));
+            if (nowSec > t.deadline) {
+              // Missed the delivery deadline (e.g. stuck/crashed past it). Crank
+              // the timeout so the market settles (R1 -> NO) instead of hanging.
+              console.log(`[worker] task ${taskId}: deadline passed, undelivered — settling by timeout (NO)`);
+              await writeOracle(c, "settleByTimeout", [taskId]);
+            } else {
+              // Staked but not yet delivered (possibly after a crash) — resume
+              // execute -> validationRequest -> deliver.
+              await executeAndDeliver(taskId, t);
+            }
           }
           break;
         case "Settled":
@@ -283,12 +290,24 @@ async function main() {
           [taskId, deliverableHash],
         ),
       );
-      await writeValidationRegistry(c, "validationRequest", [
-        t.validatorWallet,
-        myAgentId,
-        evidenceURI,
-        requestHash,
-      ]);
+      // Idempotent on resume: if we already filed this exact request in a prior
+      // (crashed) attempt it reverts RequestAlreadyExists — that's fine, proceed
+      // to submitDelivery rather than aborting the whole delivery in a loop.
+      try {
+        await writeValidationRegistry(c, "validationRequest", [
+          t.validatorWallet,
+          myAgentId,
+          evidenceURI,
+          requestHash,
+        ]);
+      } catch (err) {
+        const m = (err as Error).message;
+        if (/RequestAlreadyExists|already|reverted/i.test(m)) {
+          console.log(`[worker] task ${taskId}: validationRequest already filed — continuing to deliver`);
+        } else {
+          throw err;
+        }
+      }
       await writeOracle(c, "submitDelivery", [taskId, deliverableHash, evidenceURI]);
       console.log(`[worker] task ${taskId}: validationRequest filed (${requestHash}), delivered`);
       reportActivity({
