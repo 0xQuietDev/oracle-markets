@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="880" height="300" viewBox="0 0 880 300" fill="none" role="img" aria-label="ORACLE — outcome markets for agent trust">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f1320"/>
+      <stop offset="1" stop-color="#0a0c14"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0V44" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- field -->
+  <rect width="880" height="300" rx="18" fill="url(#bg)"/>
+  <rect width="880" height="300" rx="18" fill="url(#grid)"/>
+  <rect x="0.5" y="0.5" width="879" height="299" rx="18" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+
+  <!-- wordmark -->
+  <g transform="translate(54 70)">
+    <text font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="46" font-weight="800" letter-spacing="10" fill="#f4f6fb">
+      ORACLE
+      <animate attributeName="opacity" values="0;1" dur="0.9s" begin="0.1s" fill="freeze"/>
+    </text>
+    <text y="30" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" letter-spacing="1.5" fill="#8b93a7">
+      outcome markets for agent trust
+      <animate attributeName="opacity" values="0;1" dur="0.9s" begin="0.5s" fill="freeze"/>
+    </text>
+    <!-- live pill -->
+    <g transform="translate(0 52)">
+      <rect width="58" height="22" rx="11" fill="#34d399" fill-opacity="0.14" stroke="#34d399" stroke-opacity="0.5"/>
+      <circle cx="14" cy="11" r="3.5" fill="#34d399">
+        <animate attributeName="opacity" values="1;0.25;1" dur="1.6s" repeatCount="indefinite"/>
+      </circle>
+      <text x="26" y="15" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1" fill="#7ee0b8">LIVE</text>
+    </g>
+  </g>
+
+  <!-- price-of-trust chart -->
+  <g transform="translate(0 0)">
+    <!-- area under the line -->
+    <path d="M470 210 L530 196 L590 204 L640 168 L690 176 L740 132 L790 146 L840 104 L840 250 L470 250 Z" fill="url(#fill)">
+      <animate attributeName="opacity" values="0;1" dur="1s" begin="0.6s" fill="freeze"/>
+    </path>
+    <!-- the rising trust line -->
+    <path id="trust" d="M470 210 L530 196 L590 204 L640 168 L690 176 L740 132 L790 146 L840 104"
+          fill="none" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+          filter="url(#glow)" stroke-dasharray="560" stroke-dashoffset="560">
+      <animate attributeName="stroke-dashoffset" values="560;0" dur="2.4s" begin="0.6s" repeatCount="indefinite"/>
+    </path>
+    <!-- pulse dot travelling the line -->
+    <circle r="5" fill="#ffffff" filter="url(#glow)">
+      <animateMotion dur="2.4s" begin="0.6s" repeatCount="indefinite" rotate="auto">
+        <mpath xlink:href="#trust"/>
+      </animateMotion>
+    </circle>
+  </g>
+
+  <!-- YES / NO market chips -->
+  <g font-family="'Segoe UI',Helvetica,Arial,sans-serif" transform="translate(54 188)">
+    <g>
+      <rect width="150" height="46" rx="10" fill="#34d399" fill-opacity="0.10" stroke="#34d399" stroke-opacity="0.35"/>
+      <text x="14" y="20" font-size="11" font-weight="700" letter-spacing="2" fill="#34d399">YES</text>
+      <text x="14" y="39" font-size="20" font-weight="800" fill="#eafff6">62<tspan font-size="12" fill="#7ee0b8">¢</tspan></text>
+      <rect x="60" y="10" width="80" height="26" rx="6" fill="none"/>
+      <text x="138" y="28" text-anchor="end" font-size="12" fill="#7ee0b8">
+        <animate attributeName="opacity" values="0.5;1;0.5" dur="2.2s" repeatCount="indefinite"/>▲ live
+      </text>
+    </g>
+    <g transform="translate(166 0)">
+      <rect width="150" height="46" rx="10" fill="#f87171" fill-opacity="0.08" stroke="#f87171" stroke-opacity="0.30"/>
+      <text x="14" y="20" font-size="11" font-weight="700" letter-spacing="2" fill="#f87171">NO</text>
+      <text x="14" y="39" font-size="20" font-weight="800" fill="#ffecec">38<tspan font-size="12" fill="#f2a3a3">¢</tspan></text>
+    </g>
+  </g>
+
+  <!-- agent flow: worker -> market -> validator, with a flowing pulse -->
+  <g transform="translate(54 262)" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" fill="#8b93a7">
+    <line x1="40" y1="6" x2="300" y2="6" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+    <circle cx="40" cy="6" r="4" fill="#818cf8"/>
+    <circle cx="170" cy="6" r="4" fill="#818cf8"/>
+    <circle cx="300" cy="6" r="4" fill="#818cf8"/>
+    <circle r="3.5" fill="#34d399">
+      <animateMotion dur="2.8s" repeatCount="indefinite" path="M40 6 L300 6"/>
+    </circle>
+    <text x="40" y="26" text-anchor="middle">worker</text>
+    <text x="170" y="26" text-anchor="middle">market</text>
+    <text x="300" y="26" text-anchor="middle">validator</text>
+  </g>
+
+  <!-- standards stamp -->
+  <g transform="translate(700 252)" font-family="'Segoe UI',Helvetica,Arial,sans-serif" text-anchor="end">
+    <text x="126" y="10" font-size="11" fill="#6b7280">Avalanche Fuji · 43113</text>
+    <text x="126" y="28" font-size="11" fill="#6b7280">x402 · ERC-8004</text>
+  </g>
+</svg>

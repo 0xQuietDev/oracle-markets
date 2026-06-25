@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="220" viewBox="0 0 480 220" fill="none" role="img" aria-label="x402 payment pulse flowing from worker to vendor to validator">
+  <defs>
+    <linearGradient id="xp-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f1320"/>
+      <stop offset="1" stop-color="#0a0c14"/>
+    </linearGradient>
+    <filter id="xp-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="xp-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity="0.04" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="480" height="220" rx="16" fill="url(#xp-bg)"/>
+  <rect width="480" height="220" rx="16" fill="url(#xp-grid)"/>
+  <rect x="0.5" y="0.5" width="479" height="219" rx="16" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+
+  <!-- header -->
+  <text x="28" y="38" font-family="'Space Grotesk','Segoe UI',sans-serif" font-size="13" font-weight="700" letter-spacing="1.2" fill="#f4f6fb">x402 PAYMENT FLOW</text>
+  <text x="452" y="38" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="10" fill="#6b7280">EIP-3009 · USDC</text>
+
+  <!-- the rail -->
+  <line x1="68" y1="120" x2="412" y2="120" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
+
+  <!-- nodes -->
+  <g font-family="'Inter','Segoe UI',sans-serif" font-size="12" text-anchor="middle">
+    <!-- worker -->
+    <g transform="translate(68 120)">
+      <circle r="22" fill="#11162a" stroke="#818cf8" stroke-opacity="0.6" stroke-width="2"/>
+      <text y="5" font-size="18">&#129302;</text>
+      <text y="46" fill="#c7cbd6" font-weight="600">worker</text>
+    </g>
+    <!-- vendor -->
+    <g transform="translate(240 120)">
+      <circle r="22" fill="#11162a" stroke="#818cf8" stroke-opacity="0.6" stroke-width="2"/>
+      <text y="5" font-size="18">&#127978;</text>
+      <text y="46" fill="#c7cbd6" font-weight="600">vendor</text>
+    </g>
+    <!-- validator -->
+    <g transform="translate(412 120)">
+      <circle r="22" fill="#11162a" stroke="#818cf8" stroke-opacity="0.6" stroke-width="2"/>
+      <text y="5" font-size="18">&#9878;</text>
+      <text y="46" fill="#c7cbd6" font-weight="600">validator</text>
+    </g>
+  </g>
+
+  <!-- 402 challenge labels -->
+  <g font-family="'JetBrains Mono',monospace" font-size="9" fill="#8b93a7" text-anchor="middle">
+    <text x="154" y="100">402 &#8594; pay</text>
+    <text x="326" y="100">402 &#8594; pay</text>
+  </g>
+
+  <!-- payment pulse: worker -> vendor -->
+  <circle r="6" fill="#34d399" filter="url(#xp-glow)">
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.05;0.45;0.5" dur="3.2s" repeatCount="indefinite"/>
+    <animateMotion path="M68 120 L240 120" keyPoints="0;1" keyTimes="0;0.5" calcMode="linear" dur="3.2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- payment pulse: worker(+vendor input) -> validator -->
+  <circle r="6" fill="#818cf8" filter="url(#xp-glow)">
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.5;0.55;0.95;1" dur="3.2s" repeatCount="indefinite"/>
+    <animateMotion path="M68 120 L412 120" keyPoints="0;0;1" keyTimes="0;0.5;1" calcMode="linear" dur="3.2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- settled stamp -->
+  <g transform="translate(206 178)">
+    <rect width="68" height="20" rx="10" fill="#34d399" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.4"/>
+    <text x="34" y="14" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="700" fill="#7ee0b8">SETTLED</text>
+    <animate attributeName="opacity" values="0.3;1;0.3" dur="3.2s" repeatCount="indefinite"/>
+  </g>
+</svg>

@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ORACLE — outcome markets for agent trust</title>
+
+  <!-- reveal.js 5.x core + theme (CDN) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+  <!-- highlight.js theme for code blocks -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg0: #0a0c14;
+      --bg1: #0f1320;
+      --accent: #818cf8;
+      --yes: #34d399;
+      --no: #f87171;
+      --text: #f4f6fb;
+      --muted: #8b93a7;
+      --hair: rgba(255,255,255,0.08);
+      --grid: rgba(255,255,255,0.04);
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    html, body { background: var(--bg0); }
+
+    .reveal {
+      font-family: var(--font-body);
+      color: var(--text);
+      font-size: 30px;
+    }
+
+    /* engineering-grid background on the whole deck */
+    .reveal-viewport {
+      background:
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg0) 100%);
+    }
+    .reveal-viewport::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .reveal .slides { z-index: 1; }
+
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: var(--font-display);
+      color: var(--text);
+      text-transform: none;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+      margin-bottom: 0.4em;
+      text-shadow: none;
+    }
+    .reveal h1 { font-size: 2.4em; }
+    .reveal h2 { font-size: 1.5em; }
+    .reveal h3 { font-size: 1.1em; }
+
+    .reveal p, .reveal li { color: var(--text); line-height: 1.45; }
+    .reveal .muted { color: var(--muted); }
+    .reveal .accent { color: var(--accent); }
+    .reveal .yes { color: var(--yes); }
+    .reveal .no  { color: var(--no); }
+    .reveal strong { color: var(--text); font-weight: 700; }
+
+    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+    .num  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; }
+
+    .reveal a { color: var(--accent); text-decoration: none; }
+    .reveal a:hover { text-decoration: underline; }
+
+    /* slide chrome */
+    .reveal .slides section { text-align: left; top: 0 !important; }
+
+    .kicker {
+      font-family: var(--font-mono);
+      font-size: 0.5em;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.6em;
+      opacity: 0.9;
+    }
+
+    /* badges / chips */
+    .badges { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.5em;
+      letter-spacing: 0.04em;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--hair);
+      background: rgba(129,140,248,0.08);
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .badge.green { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.10); color: #aef0d4; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.5em;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--hair);
+      background: rgba(255,255,255,0.02);
+      color: var(--text);
+    }
+    .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+    .chip .dot.green { background: var(--yes); }
+    .chip .dot.red { background: var(--no); }
+
+    /* cards / grids */
+    .grid { display: grid; gap: 18px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .card {
+      border: 1px solid var(--hair);
+      background: rgba(255,255,255,0.025);
+      border-radius: 14px;
+      padding: 20px 22px;
+    }
+    .card h3 { margin: 0 0 0.3em; font-size: 0.92em; }
+    .card .lab {
+      font-family: var(--font-mono);
+      font-size: 0.42em;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      display: block;
+      margin-bottom: 6px;
+    }
+    .card p { font-size: 0.66em; color: var(--muted); margin: 0; }
+    .card.yes-edge { border-left: 3px solid var(--yes); }
+    .card.no-edge  { border-left: 3px solid var(--no); }
+    .card.accent-edge { border-left: 3px solid var(--accent); }
+
+    .reveal ul { margin-left: 1em; }
+    .reveal li { margin-bottom: 0.5em; }
+
+    .big-q {
+      font-family: var(--font-display);
+      font-size: 1.9em;
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: -8px; left: 0; right: 0;
+      font-family: var(--font-mono);
+      font-size: 0.42em;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    .hero-wrap { text-align: center; margin: 10px 0 18px; }
+    .hero-wrap img { width: 78%; max-width: 880px; filter: drop-shadow(0 10px 40px rgba(0,0,0,0.5)); }
+
+    .svg-inline { text-align: center; }
+    .svg-inline img { max-width: 100%; }
+
+    /* flow row for "how it works" */
+    .flow { display: flex; align-items: stretch; gap: 0; margin-top: 18px; }
+    .flow .step {
+      flex: 1;
+      border: 1px solid var(--hair);
+      background: rgba(255,255,255,0.025);
+      border-radius: 12px;
+      padding: 14px 12px;
+      position: relative;
+    }
+    .flow .step .n {
+      font-family: var(--font-mono);
+      font-size: 0.4em;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+    .flow .step h4 { font-size: 0.6em; margin: 6px 0 4px; }
+    .flow .step p { font-size: 0.42em; color: var(--muted); margin: 0; font-family: var(--font-mono); }
+    .flow .arrow { display: flex; align-items: center; color: var(--accent); font-size: 1.1em; padding: 0 8px; }
+
+    /* address table */
+    .addr-list { display: grid; gap: 10px; margin-top: 6px; }
+    .addr-row {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 14px;
+      border: 1px solid var(--hair);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+    }
+    .addr-row .label { font-family: var(--font-mono); font-size: 0.5em; color: var(--muted); letter-spacing: 0.06em; }
+    .addr-row .val { font-family: var(--font-mono); font-size: 0.5em; color: var(--text); word-break: break-all; }
+    .addr-row .val a { color: var(--text); }
+    .addr-row .val a:hover { color: var(--accent); }
+
+    .settled { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+    .settled .m { font-family: var(--font-mono); font-size: 0.5em; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--hair); }
+    .settled .m.y { color: #aef0d4; border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.08); }
+    .settled .m.n { color: #f6b3b3; border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+    .lead { font-size: 0.92em; color: var(--muted); max-width: 24ch; }
+
+    .pillars-flow { font-family: var(--font-mono); font-size: 0.5em; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+
+    .recap { font-family: var(--font-mono); font-size: 0.5em; color: var(--muted); margin-top: 16px; }
+    .recap b { color: var(--text); }
+
+    /* fragment fade for fade-in lists keeps brand subtle */
+    .reveal .fragment.fade-in-then-semi-out.visible.current-fragment { color: var(--text); }
+
+    .center-slide { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+
+    .small { font-size: 0.6em; }
+    .tiny { font-size: 0.5em; }
+
+    .reveal section img { border: none; box-shadow: none; background: transparent; }
+
+    .two-col { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: center; }
+    .two-col.flip { grid-template-columns: 0.9fr 1.1fr; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- 1 · TITLE -->
+      <section data-auto-animate>
+        <div class="hero-wrap">
+          <img src="assets/oracle-hero.svg" alt="ORACLE — outcome markets for agent trust">
+        </div>
+        <div class="badges" style="justify-content:center;">
+          <span class="badge green">Avalanche Fuji · 43113</span>
+          <span class="badge">x402 · scheme exact</span>
+          <span class="badge">ERC-8004</span>
+          <span class="badge">Mastra + Gemini 2.5 Flash</span>
+        </div>
+        <p style="text-align:center; margin-top:18px;" class="mono small muted">
+          <a href="https://github.com/0xQuietDev/oracle-markets">github.com/0xQuietDev/oracle-markets</a>
+        </p>
+        <div class="footer" style="text-align:center;">Team1 India Speedrun #1 — Agentic Payments</div>
+        <aside class="notes">
+          Three-minute pitch. ORACLE is a binary parimutuel prediction market on whether an AI worker agent
+          completes a task before its deadline — settled in USDC on Avalanche Fuji, validated against ERC-8004,
+          resold as a forward-looking trust feed over x402. The hook: ERC-8004 tells you an agent's past;
+          nobody prices its future — and here, the agent has to bet on itself. Keep energy high, land the hook on slide 2.
+        </aside>
+      </section>
+
+      <!-- 2 · THE GAP -->
+      <section>
+        <div class="kicker">The gap</div>
+        <h2>ERC-8004 tells you an agent's <span class="muted">PAST.</span></h2>
+        <h2>Nobody prices its <span class="accent">FUTURE.</span></h2>
+        <ul style="margin-top:24px;">
+          <li class="fragment fade-up"><strong>Backward-looking.</strong> <span class="muted">Reputation only aggregates past feedback.</span></li>
+          <li class="fragment fade-up"><strong>Cold start.</strong> <span class="muted">Silent on a brand-new agent with no history.</span></li>
+          <li class="fragment fade-up"><strong>Farmable.</strong> <span class="muted">Inflate a score by grinding cheap, easy jobs.</span></li>
+        </ul>
+        <div class="footer">ORACLE · outcome markets for agent trust</div>
+      </section>
+
+      <!-- 3 · THE QUESTION -->
+      <section data-auto-animate class="center-slide" style="text-align:center;">
+        <div class="kicker" style="text-align:center;">The question</div>
+        <p class="big-q" style="text-align:center;">
+          Will <span class="accent">THIS</span> agent succeed at<br>
+          <span class="accent">THIS</span> task —
+          <span class="yes">now?</span>
+        </p>
+        <div class="footer" style="text-align:center;">ORACLE</div>
+      </section>
+
+      <!-- 4 · THE INSIGHT -->
+      <section data-auto-animate class="center-slide">
+        <div class="kicker">The insight</div>
+        <h1>Make the agent <span class="accent">bet on itself.</span></h1>
+        <p class="lead fragment fade-up" style="max-width:30ch; font-size:0.8em; margin-top:6px;">
+          Confidence you <em>can't fake</em> — because it costs money.
+        </p>
+        <p class="fragment fade-up mono small muted" style="margin-top:18px;">
+          Acceptance becomes a wager. Talk is free; stake is not.
+        </p>
+        <div class="footer">ORACLE</div>
+      </section>
+
+      <!-- 5 · MECHANIC 1 · SELF-STAKE -->
+      <section>
+        <div class="kicker">Mechanic 1 / 3</div>
+        <div class="two-col">
+          <div>
+            <h2>Mandatory self-stake</h2>
+            <p class="muted small" style="margin-top:-6px;">a costly signal</p>
+            <ul style="margin-top:18px;">
+              <li class="fragment fade-up">A worker can't accept a task without staking <span class="num accent">&ge;10%</span> of the reward on its <strong>own</strong> success.</li>
+              <li class="fragment fade-up"><strong>Acceptance IS a bet.</strong></li>
+              <li class="fragment fade-up">Fail &rarr; the stake flows to the <span class="no">doubters</span>.</li>
+              <li class="fragment fade-up"><span class="accent">Confidence becomes capital at risk — unfakeable.</span></li>
+            </ul>
+          </div>
+          <div class="svg-inline">
+            <img src="assets/self-stake.svg" alt="self-stake coin locks onto the agent's own success">
+          </div>
+        </div>
+        <div class="footer">ORACLE · Mechanic 1 — self-stake</div>
+        <aside class="notes">
+          The keystone. Most reputation systems let agents claim confidence for free. Here, to even accept the job,
+          the worker must put at least 10% of the reward on its own success. If it fails, that stake is paid out to
+          the bettors who took NO. So the very act of accepting is a costly, on-chain signal — you literally cannot
+          fake confidence, because confidence is now capital at risk.
+        </aside>
+      </section>
+
+      <!-- 6 · MECHANIC 2 · OPEN ODDS -->
+      <section>
+        <div class="kicker">Mechanic 2 / 3</div>
+        <div class="two-col flip">
+          <div class="svg-inline">
+            <img src="assets/odds-bar.svg" alt="live odds bar with shifting YES and NO shares">
+          </div>
+          <div>
+            <h2>Open odds = a live trust price</h2>
+            <ul style="margin-top:18px;">
+              <li class="fragment fade-up">Autonomous bettor agents take <span class="yes">YES</span> / <span class="no">NO</span> during a betting window.</li>
+              <li class="fragment fade-up">The pool ratio is a <strong>real-time, capital-weighted probability of success.</strong></li>
+              <li class="fragment fade-up"><span class="accent">A market price for "can I trust this agent, right now?"</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer">ORACLE · Mechanic 2 — open odds</div>
+        <aside class="notes">
+          Once the worker has skin in the game, a betting window opens. Autonomous bettor agents — each with its own
+          strategy — buy YES or NO. Because it's parimutuel, the ratio of the two pools is a live, capital-weighted
+          probability. That number is the trust price: a forward-looking, market-set odds on this specific agent
+          completing this specific task before the deadline.
+        </aside>
+      </section>
+
+      <!-- 7 · MECHANIC 3 · CALIBRATION WRITE-BACK -->
+      <section>
+        <div class="kicker">Mechanic 3 / 3</div>
+        <h2>Calibration write-back — sold over x402</h2>
+        <p class="muted small" style="margin-top:-6px;">forward-looking trust as a paid data product</p>
+        <div class="grid grid-2" style="margin-top:18px;">
+          <div class="card accent-edge fragment fade-up">
+            <span class="lab">Per-agent Trust Tuple</span>
+            <p style="color:var(--text); font-size:0.62em; line-height:1.7;" class="mono">
+              win rate · Brier calibration<br>
+              mean self-stake · forfeited stake
+            </p>
+          </div>
+          <div class="card fragment fade-up">
+            <span class="lab">After settlement</span>
+            <p>Outcome is written back to <strong>ERC-8004</strong>, then the tuple is computed per agent.</p>
+          </div>
+        </div>
+        <p class="fragment fade-up" style="margin-top:18px; font-size:0.9em;">
+          Sold to other agents at <span class="num accent">$0.005</span> / query &mdash; over x402.
+        </p>
+        <div class="svg-inline fragment fade-up" style="margin-top:14px;">
+          <img src="assets/x402-pulse.svg" alt="x402 payment pulse flowing worker to vendor to validator" style="max-width:62%;">
+        </div>
+        <div class="footer">ORACLE · Mechanic 3 — trust feed</div>
+        <aside class="notes">
+          After the market settles, we write the real outcome back into ERC-8004's registries, then compute a
+          per-agent Trust Tuple: win rate, Brier calibration score, mean self-stake, and forfeited stake. That tuple
+          is itself a product — other agents pay $0.005 a query for it over x402. So ORACLE doesn't just consume
+          ERC-8004, it produces a richer, forward-looking trust signal and monetizes it agent-to-agent.
+        </aside>
+      </section>
+
+      <!-- 8 · HOW IT WORKS -->
+      <section>
+        <div class="kicker">How it works</div>
+        <h3 style="margin-bottom:4px;">One task, end to end &mdash; rule-based <span class="mono accent">R0&ndash;R7</span>, no human.</h3>
+        <div class="flow">
+          <div class="step fragment fade-right"><div class="n">01</div><h4>Client</h4><p>createTask escrow</p></div>
+          <div class="arrow fragment fade-in">&rarr;</div>
+          <div class="step fragment fade-right"><div class="n">02</div><h4>Worker</h4><p>acceptAndStake</p></div>
+          <div class="arrow fragment fade-in">&rarr;</div>
+          <div class="step fragment fade-right"><div class="n">03</div><h4>Bettors</h4><p>pay x402 · odds+trust · bet</p></div>
+          <div class="arrow fragment fade-in">&rarr;</div>
+          <div class="step fragment fade-right"><div class="n">04</div><h4>Worker</h4><p>submitDelivery</p></div>
+          <div class="arrow fragment fade-in">&rarr;</div>
+          <div class="step fragment fade-right"><div class="n">05</div><h4>Validator</h4><p>hidden vitest / LLM judge</p></div>
+          <div class="arrow fragment fade-in">&rarr;</div>
+          <div class="step fragment fade-right"><div class="n">06</div><h4>Settle</h4><p>on-chain · 8004 write-back · payouts</p></div>
+        </div>
+        <p class="fragment fade-up mono small muted" style="margin-top:22px;">
+          Deterministic settlement: parimutuel escrow &rarr; score &rarr; outcome &rarr; payouts &rarr; ERC-8004 write-back.
+        </p>
+        <div class="footer">ORACLE · lifecycle</div>
+        <aside class="notes">
+          Walk the rail left to right. A client funds a task into escrow. The worker accepts and self-stakes.
+          A betting window opens — bettors pay over x402 for the odds and trust feed, then place bets. The worker
+          writes and submits its solution. The validator scores it — a hidden vitest suite for built-in tasks, an
+          LLM judge for custom ones — and posts the score on-chain. Then settlement runs deterministically, rules
+          R0 through R7: pays the winners, drains losers' stakes, and writes the outcome back to ERC-8004. No human
+          in the loop.
+        </aside>
+      </section>
+
+      <!-- 9 · THE AGENTS ARE REAL -->
+      <section>
+        <div class="kicker">The agents are real</div>
+        <h2 style="margin-bottom:14px;">Real LLM agents &mdash; <span class="accent">Mastra + Gemini 2.5 Flash</span></h2>
+        <div class="grid grid-3">
+          <div class="card accent-edge"><span class="lab">Worker</span><p>assesses confidence, sets self-stake, writes the solution code.</p></div>
+          <div class="card yes-edge"><span class="lab">Bettor · rep</span><p>trusts the track record; buys the Trust Tuple.</p></div>
+          <div class="card no-edge"><span class="lab">Bettor · skeptic</span><p>the designated villain — takes the other side.</p></div>
+          <div class="card accent-edge"><span class="lab">Bettor · mirror</span><p>momentum — follows the money.</p></div>
+          <div class="card"><span class="lab">Validator</span><p>deterministic on purpose: hidden vitest / LLM judge, posts score on-chain.</p></div>
+          <div class="card"><span class="lab">Vendor</span><p>x402-gated endpoint selling a task input.</p></div>
+        </div>
+        <p class="mono tiny muted" style="margin-top:16px;">No API key &rarr; deterministic fallback. Tests + local e2e run fully offline.</p>
+        <div class="footer">ORACLE · the fleet</div>
+      </section>
+
+      <!-- 10 · ALL THREE PILLARS FIRE -->
+      <section>
+        <div class="kicker">All three pillars fire</div>
+        <h2 style="margin-bottom:14px;">Agents <span class="accent">pay</span>, get <span class="yes">paid</span>, and earn <span class="accent">trust</span> — autonomously.</h2>
+        <div class="grid grid-3">
+          <div class="card accent-edge">
+            <h3>PAY</h3>
+            <p class="mono" style="font-size:0.6em; line-height:1.7;">worker buys task inputs + pays the validator · bettors buy the odds / trust feed</p>
+          </div>
+          <div class="card yes-edge">
+            <h3>GET PAID</h3>
+            <p class="mono" style="font-size:0.6em; line-height:1.7;">reward + winnings + fees flow back to the agents who were right</p>
+          </div>
+          <div class="card accent-edge">
+            <h3>ESTABLISH TRUST</h3>
+            <p class="mono" style="font-size:0.6em; line-height:1.7;">self-stake + live market + ERC-8004 write-back, with no human gatekeeper</p>
+          </div>
+        </div>
+        <div class="footer">ORACLE · agentic payments, end to end</div>
+      </section>
+
+      <!-- 11 · LIVE ON FUJI -->
+      <section>
+        <div class="kicker">Live on Avalanche Fuji</div>
+        <h2 style="margin-bottom:6px;">Real chain. <span class="accent">Real EIP-3009 USDC.</span></h2>
+        <div class="addr-list">
+          <div class="addr-row"><span class="label">OracleCore</span><span class="val"><a href="https://testnet.snowtrace.io/address/0xa8Cc58b1E28ee7b5B8fc870402DC1515f4fe7BAD">0xa8Cc58b1E28ee7b5B8fc870402DC1515f4fe7BAD</a></span></div>
+          <div class="addr-row"><span class="label">EIP-3009 USDC</span><span class="val"><a href="https://testnet.snowtrace.io/address/0x08386F62725b25d8506e5B0016E13574980760Db">0x08386F62725b25d8506e5B0016E13574980760Db</a></span></div>
+          <div class="addr-row"><span class="label">ValidationRegistry</span><span class="val"><a href="https://testnet.snowtrace.io/address/0xC5a96DE9d445849CB5c159967A5532D2D3CBAE81">0xC5a96DE9d445849CB5c159967A5532D2D3CBAE81</a></span></div>
+          <div class="addr-row"><span class="label">ERC-8004 Identity</span><span class="val"><a href="https://testnet.snowtrace.io/address/0x8004A818BFB912233c491871b3d84c89A494BD9e">0x8004A818BFB912233c491871b3d84c89A494BD9e</a></span></div>
+          <div class="addr-row"><span class="label">ERC-8004 Reputation</span><span class="val"><a href="https://testnet.snowtrace.io/address/0x8004B663056A597Dffe9eCcC1965A193B7388713">0x8004B663056A597Dffe9eCcC1965A193B7388713</a></span></div>
+        </div>
+        <div class="settled">
+          <span class="m y">#3 YES</span>
+          <span class="m y">#4 YES</span>
+          <span class="m n">#5 NO</span>
+          <span class="m n">#6 NO</span>
+          <span class="mono tiny muted" style="align-self:center;">fleet agentIds 211&ndash;217</span>
+        </div>
+        <div class="footer">ORACLE · snowtrace testnet</div>
+        <aside class="notes">
+          This is not a mock. Everything is deployed and settled on Avalanche Fuji. To avoid the Circle faucet we
+          shipped our own EIP-3009 USDC, so transfers are real authorization-based transfers. Four markets are
+          already settled on-chain — #3 and #4 resolved YES, #5 and #6 resolved NO — and the seven-agent fleet has
+          on-chain ERC-8004 identities, agentIds 211 through 217. Every address links to Snowtrace; judges can verify
+          live.
+        </aside>
+      </section>
+
+      <!-- 12 · ARCHITECTURE -->
+      <section>
+        <div class="kicker">Architecture</div>
+        <h2 style="margin-bottom:14px;">A pnpm monorepo</h2>
+        <div class="grid grid-2">
+          <div class="card accent-edge"><span class="lab">contracts/ · Foundry</span><p><span class="mono" style="color:var(--text)">OracleCore.sol</span> — parimutuel escrow, R0&ndash;R7 settlement, ERC-8004 write-back. <span class="num yes">37</span> tests incl. a fuzzed solvency invariant.</p></div>
+          <div class="card"><span class="lab">shared/</span><p>ABI / config + the x402 wire protocol + an x402-lite middleware &amp; client.</p></div>
+          <div class="card"><span class="lab">server/</span><p>indexer &rarr; SQLite, x402-gated API for odds + trust feed, Trust Tuple, a self-hosted mini-facilitator relaying real EIP-3009 transfers, WebSocket.</p></div>
+          <div class="card"><span class="lab">agents/</span><p>the fleet — worker, three bettors, validator, vendor — on Mastra + Gemini.</p></div>
+          <div class="card" style="grid-column: span 2;"><span class="lab">web/ · React 19</span><p>HeroUI v3 + recharts. A Polymarket-style dashboard: markets list &rarr; detail, live odds line, self-stake badge, agent "honesty market" order flow, settle animation.</p></div>
+        </div>
+        <div class="footer">ORACLE · the build</div>
+      </section>
+
+      <!-- 13 · DEMO -->
+      <section>
+        <div class="kicker">Demo · the two-task story</div>
+        <div class="grid grid-2" style="margin-top:8px;">
+          <div class="card yes-edge">
+            <h3><span class="mono">Task A</span> · <span class="mono accent">slugify</span></h3>
+            <p style="color:var(--text); font-size:0.62em; line-height:1.7;">
+              Gemini writes a correct solution &rarr; validator <span class="num yes">10/10</span> &rarr;
+              market resolves <span class="yes">YES</span> &rarr; worker paid.
+            </p>
+          </div>
+          <div class="card no-edge">
+            <h3><span class="mono">Task B</span> · <span class="mono accent">nextBusinessDay(date,"IN")</span></h3>
+            <p style="color:var(--text); font-size:0.62em; line-height:1.7;">
+              Hidden tests include Indian regional holidays (Pongal, Onam) absent from the public spec &rarr;
+              Gemini scores <span class="num no">~5/10</span> &rarr; <span class="no">NO</span> &rarr;
+              the worker's self-stake drains to the skeptic.
+            </p>
+          </div>
+        </div>
+        <p class="fragment fade-up" style="margin-top:22px; font-size:0.85em;">
+          <span class="accent">An authentic failure — not a script.</span>
+        </p>
+        <div class="footer">ORACLE · live demo</div>
+        <aside class="notes">
+          Two tasks tell the whole story. Task A, slugify — Gemini nails it, validator gives 10 out of 10, market
+          resolves YES, worker gets paid. Task B, next business day in India — and here's the trap: the hidden test
+          suite includes Indian regional holidays like Pongal and Onam that are NOT in the public spec. Gemini does
+          a reasonable job but scores about 5 out of 10, the market resolves NO, and the worker's own self-stake
+          drains to the skeptic who bet against it. That's a genuine failure surfacing genuine information — exactly
+          what the market is for.
+        </aside>
+      </section>
+
+      <!-- 14 · CLOSE -->
+      <section class="center-slide">
+        <div class="kicker">Close</div>
+        <p class="big-q" style="font-size:1.5em;">
+          A live, on-chain price for the question agents keep asking each other:
+          <span class="accent">can I trust you to do this?</span>
+        </p>
+        <p class="recap">
+          <b>self-stake</b> &middot; <b>open odds</b> &middot; <b>calibration write-back over x402</b>
+        </p>
+        <p class="mono small" style="margin-top:18px;">
+          <a href="https://github.com/0xQuietDev/oracle-markets">github.com/0xQuietDev/oracle-markets</a>
+        </p>
+        <h2 style="margin-top:18px;">Thank you.</h2>
+        <p class="mono tiny muted" style="margin-top:8px;">Unaudited hackathon code · testnet only · settlement guarded by nonReentrant, pull-payments, checks-effects-interactions + a fuzzed solvency invariant. No security audit.</p>
+        <div class="footer">Team1 India Speedrun #1 — Agentic Payments</div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- reveal.js core + plugins (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      transitionSpeed: 'default',
+      backgroundTransition: 'fade',
+      controls: true,
+      progress: true,
+      slideNumber: 'c/t',
+      center: false,
+      width: 1280,
+      height: 720,
+      margin: 0.06,
+      autoAnimateDuration: 0.6,
+      plugins: [ RevealNotes, RevealHighlight ]
+    });
+  </script>
+</body>
+</html>

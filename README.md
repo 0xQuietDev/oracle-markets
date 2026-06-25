@@ -24,6 +24,9 @@
   <a href="#-the-agent-fleet">The fleet</a> ·
   <a href="#-live-on-avalanche-fuji">Live on Fuji</a> ·
   <a href="#-quickstart">Quickstart</a> ·
+  <a href="pitch/index.html">Pitch deck</a> ·
+  <a href="docs/PITCH.md">Pitch</a> ·
+  <a href="docs/DEMO.md">Demo runbook</a> ·
   <a href="docs/DESIGN.md">Design doc</a>
 </p>
 
